@@ -60,7 +60,7 @@ export const experiences: Experience[] = [
     period: "Nov 2024 – Present",
     location: "Remote",
     highlights: [
-      "Authored 500+ prompt-response pairs and adversarial test cases for RLHF fine-tuning pipelines across Python, SQL, C, and Java",
+      "Authored 100+ prompt-response pairs and adversarial test cases for RLHF fine-tuning pipelines across Python, SQL, C, and Java",
     ],
   },
 ]
