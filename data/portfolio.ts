@@ -98,6 +98,7 @@ export const projects: Project[] = [
     description:
       "Voice-first AI assistant designed as a personal agronomist for Moroccan farmers. Built during HackAI across NLP, Federated Learning, and VLM challenges.",
     badge: "2nd place — HackAI",
+    link: "https://jarvislfla7.vercel.app",
     image: "/sound-wave-visualization-dark-theme.jpg",
   },
   {
