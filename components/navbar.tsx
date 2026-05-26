@@ -50,7 +50,6 @@ export function Navbar() {
             }}
             className="group flex items-center gap-2"
           >
-            <span className="font-mono text-xs tracking-widest text-gray-400">PORTFOLIO</span>
             <span className="w-1.5 h-1.5 rounded-full bg-white group-hover:scale-150 transition-transform duration-300" />
           </a>
 

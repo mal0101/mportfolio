@@ -73,9 +73,7 @@ export function Hero() {
           transition={{ duration: 1, delay: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="self-end text-right"
         >
-          <p className="font-mono text-xs tracking-[0.3em] text-muted-foreground mb-3">
-            {personalInfo.location.toUpperCase()}
-          </p>
+          <p className="font-mono text-xs tracking-[0.3em] text-white/50 mb-3">{personalInfo.location.toUpperCase()}</p>
           <div className="flex flex-col gap-2 items-end">
             <a
               href={personalInfo.github}
