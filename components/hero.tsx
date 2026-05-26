@@ -1,7 +1,6 @@
 "use client"
 
 import { useRef } from "react"
-import Image from "next/image"
 import dynamic from "next/dynamic"
 import { motion, useScroll, useTransform } from "framer-motion"
 import { personalInfo } from "@/data/portfolio"
@@ -37,26 +36,13 @@ export function Hero() {
         style={{ opacity, scale }}
         className="relative z-10 h-full flex flex-col justify-between p-8 md:p-12 md:px-12 md:py-20"
       >
-        {/* Top Left - Name with Profile Picture */}
+        {/* Top Left - Name */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="flex gap-8 items-start"
+          className="flex flex-col gap-2"
         >
-          {/* Profile Image */}
-          <div className="hidden md:flex flex-shrink-0">
-            <div className="w-40 h-40 rounded-lg border border-gray-700 overflow-hidden">
-              <Image
-                src="/profile.png"
-                alt="Malak Mekyassi"
-                width={160}
-                height={160}
-                className="object-cover w-full h-full"
-              />
-            </div>
-          </div>
-
           {/* Name Section */}
           <div>
             <p className="font-mono text-xs tracking-[0.3em] text-gray-400 mb-4">{personalInfo.tagline}</p>
