@@ -64,7 +64,7 @@ export function Works() {
                 {project.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="font-mono text-xs tracking-wider px-2.5 py-1 border border-gray-700 rounded-full text-gray-500"
+                    className="font-mono text-xs tracking-wider px-2.5 py-1 border border-gray-700 rounded-full text-gray-400"
                   >
                     {tag}
                   </span>
@@ -79,7 +79,7 @@ export function Works() {
                     href={project.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-auto text-gray-600 hover:text-white transition-colors"
+                    className="ml-auto text-gray-500 hover:text-white transition-colors"
                   >
                     <ExternalLink className="w-4 h-4" />
                   </a>

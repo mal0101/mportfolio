@@ -106,6 +106,7 @@ export const projects: Project[] = [
     description:
       "AI clinical safety assistant built on Mistral OCR and a real-time voice pipeline for healthcare professionals.",
     badge: "Top 10 globally — Mistral AI Worldwide Hackathon",
+    link: "https://github.com/mar1shell/MediCore",
     image: "/abstract-neural-network-visualization-dark-theme.jpg",
   },
   {
@@ -146,17 +147,11 @@ export const education: Education[] = [
   {
     degree: "Engineer's Degree in AI & Software Engineering",
     school: "ENSAM Casablanca",
-    period: "Sep 2024 – Present",
+    period: "Oct 2022 – Present",
     details: [
-      "Coursework: Machine Learning, Deep Learning, Reinforcement Learning, NLP, Software Architecture, Algorithms",
+      "Coursework: Machine Learning, Deep Learning, Reinforcement Learning, NLP, Advanced Algorithms, Databases",
       'Research paper in preparation: "Defensive ML Security: Adversarial Threat Detection and Backdoor Neutralisation in Serialised Model Files"',
     ],
-  },
-  {
-    degree: "Integrated Preparatory Classes",
-    school: "ENSAM Casablanca",
-    period: "Oct 2022 – Jun 2024",
-    details: [],
   },
 ]
 
@@ -187,7 +182,7 @@ export const skillCategories: SkillCategory[] = [
   },
   {
     category: "Languages",
-    skills: ["English (fluent)", "French (fluent)", "Arabic (native)"],
+    skills: ["English (fluent)", "French (fluent)", "Arabic (native)", "Tamazight (native)"],
   },
 ]
 
@@ -210,6 +205,13 @@ export const leadership: Leadership[] = [
     organization: "McKinsey Forward Program",
     period: "Sep – Dec 2025",
     description: "Executive education and strategic consulting training",
+  },
+  {
+    role: "Participant",
+    organization: "Dell STEM Aspire Program",
+    period: "Jul 2025 – Feb 2026",
+    description:
+      "Mentored by industry professionals via Dell STEM Aspire, gaining leadership experience and practical career insight in tech",
   },
 ]
 

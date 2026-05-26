@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef } from "react"
+import Image from "next/image"
 import dynamic from "next/dynamic"
 import { motion, useScroll, useTransform } from "framer-motion"
 import { personalInfo } from "@/data/portfolio"
@@ -45,14 +46,20 @@ export function Hero() {
         >
           {/* Profile Image */}
           <div className="hidden md:flex flex-shrink-0">
-            <div className="w-40 h-40 bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 flex items-center justify-center overflow-hidden">
-              <span className="font-sans text-5xl font-light text-gray-600">MM</span>
+            <div className="w-40 h-40 rounded-lg border border-gray-700 overflow-hidden">
+              <Image
+                src="/profile.png"
+                alt="Malak Mekyassi"
+                width={160}
+                height={160}
+                className="object-cover w-full h-full"
+              />
             </div>
           </div>
 
           {/* Name Section */}
           <div>
-            <p className="font-mono text-xs tracking-[0.3em] text-gray-500 mb-4">{personalInfo.tagline}</p>
+            <p className="font-mono text-xs tracking-[0.3em] text-gray-400 mb-4">{personalInfo.tagline}</p>
             <h1 className="font-sans text-5xl md:text-6xl lg:text-7xl font-light tracking-tight text-white">
               {personalInfo.name.split(" ")[0].toUpperCase()}
               <br />

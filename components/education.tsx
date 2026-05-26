@@ -17,7 +17,7 @@ export function Education() {
               <h3 className="font-sans text-2xl md:text-3xl font-light text-white mb-2">{edu.degree}</h3>
               <div className="flex flex-col md:flex-row md:items-baseline md:justify-between gap-2">
                 <p className="font-mono text-sm tracking-wide text-gray-400">{edu.school}</p>
-                <span className="font-mono text-sm text-gray-500">{edu.period}</span>
+                <span className="font-mono text-sm text-gray-400">{edu.period}</span>
               </div>
             </div>
 
@@ -25,7 +25,7 @@ export function Education() {
               <ul className="space-y-2">
                 {edu.details.map((detail, i) => (
                   <li key={i} className="font-sans text-base text-gray-400 leading-relaxed">
-                    <span className="text-gray-600 mr-3">•</span>
+                    <span className="text-gray-500 mr-3">•</span>
                     {detail}
                   </li>
                 ))}

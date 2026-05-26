@@ -20,7 +20,7 @@ export function Experience() {
             <div className="mb-4">
               <div className="flex flex-col md:flex-row md:items-baseline md:justify-between gap-2 mb-2">
                 <h3 className="font-sans text-2xl md:text-3xl font-light text-white">{exp.role}</h3>
-                <span className="font-mono text-sm text-gray-500">{exp.period}</span>
+                <span className="font-mono text-sm text-gray-400">{exp.period}</span>
               </div>
               <p className="font-mono text-sm tracking-wide text-gray-400">
                 {exp.company} • {exp.location}
@@ -30,7 +30,7 @@ export function Experience() {
             <ul className="space-y-3">
               {exp.highlights.map((highlight, i) => (
                 <li key={i} className="font-sans text-base md:text-lg text-gray-300 leading-relaxed">
-                  <span className="text-gray-600 mr-3">•</span>
+                  <span className="text-gray-500 mr-3">•</span>
                   {highlight}
                 </li>
               ))}
