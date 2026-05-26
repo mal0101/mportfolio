@@ -25,7 +25,7 @@ export function About() {
           pipelines, defensive ML tooling, hierarchical RL systems.
         </p>
         <p className="font-sans text-lg md:text-xl leading-relaxed text-gray-400">
-          3x hackathon winner, including a{" "}
+          2x hackathon winner, including a{" "}
           <span className="text-white font-medium">1st place recognised at an international AI conference</span>{" "}
           alongside Yann LeCun and Eric Xing.
         </p>
