@@ -4,13 +4,13 @@ export function SectionBlend() {
       <div
         className="absolute inset-0 h-1/2"
         style={{
-          background: "linear-gradient(to bottom, transparent, #050505)",
+          background: "linear-gradient(to bottom, transparent, hsl(var(--background)))",
         }}
       />
       <div
         className="absolute inset-0 top-1/2 h-1/2"
         style={{
-          background: "linear-gradient(to bottom, #050505, transparent)",
+          background: "linear-gradient(to bottom, hsl(var(--background)), transparent)",
         }}
       />
     </div>

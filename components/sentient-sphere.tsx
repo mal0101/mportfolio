@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useMemo, useEffect, useState } from "react"
+import { useRef, useMemo } from "react"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { MathUtils } from "three"
 import type { Mesh, ShaderMaterial } from "three"
@@ -130,20 +130,6 @@ function Sphere() {
 }
 
 export function SentientSphere() {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  if (!mounted) {
-    return (
-      <div className="w-full h-full flex items-center justify-center">
-        <div className="w-64 h-64 rounded-full border border-white/10 animate-pulse" />
-      </div>
-    )
-  }
-
   return (
     <Canvas
       camera={{ position: [0, 0, 5], fov: 45 }}
@@ -153,6 +139,7 @@ export function SentientSphere() {
         antialias: true,
         alpha: true,
       }}
+      aria-label="Animated 3D sphere with noise displacement"
     >
       <ambientLight intensity={0.5} />
       <Sphere />

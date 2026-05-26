@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://malakmekyassi.com/sitemap.xml

@@ -1,8 +1,18 @@
 "use client"
 
 import { useRef } from "react"
+import dynamic from "next/dynamic"
 import { motion, useScroll, useTransform } from "framer-motion"
-import { SentientSphere } from "./sentient-sphere"
+import { personalInfo } from "@/data/portfolio"
+
+const SentientSphere = dynamic(() => import("./sentient-sphere").then((m) => m.SentientSphere), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="w-64 h-64 rounded-full border border-white/10 animate-pulse" />
+    </div>
+  ),
+})
 
 export function Hero() {
   const containerRef = useRef<HTMLElement>(null)
@@ -22,7 +32,10 @@ export function Hero() {
       </div>
 
       {/* Typography Overlay */}
-      <motion.div style={{ opacity, scale }} className="relative z-10 h-full flex flex-col justify-between p-8 md:p-12 md:px-12 md:py-20">
+      <motion.div
+        style={{ opacity, scale }}
+        className="relative z-10 h-full flex flex-col justify-between p-8 md:p-12 md:px-12 md:py-20"
+      >
         {/* Top Left - Name with Profile Picture */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
@@ -30,25 +43,20 @@ export function Hero() {
           transition={{ duration: 1, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="flex gap-8 items-start"
         >
-          {/* Profile Picture Placeholder */}
+          {/* Profile Image */}
           <div className="hidden md:flex flex-shrink-0">
-            <div className="w-40 h-40 bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 flex items-center justify-center">
-              <div className="text-center">
-                <svg className="w-24 h-24 mx-auto text-gray-600 mb-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
-                </svg>
-                <p className="font-mono text-xs text-gray-600 tracking-widest">PHOTO</p>
-              </div>
+            <div className="w-40 h-40 bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg border border-gray-700 flex items-center justify-center overflow-hidden">
+              <span className="font-sans text-5xl font-light text-gray-600">MM</span>
             </div>
           </div>
 
           {/* Name Section */}
           <div>
-            <p className="font-mono text-xs tracking-[0.3em] text-gray-500 mb-4">ENGINEER & RESEARCHER</p>
+            <p className="font-mono text-xs tracking-[0.3em] text-gray-500 mb-4">{personalInfo.tagline}</p>
             <h1 className="font-sans text-5xl md:text-6xl lg:text-7xl font-light tracking-tight text-white">
-              MALAK
+              {personalInfo.name.split(" ")[0].toUpperCase()}
               <br />
-              <span className="italic">MEKYASSI</span>
+              <span className="italic">{personalInfo.name.split(" ")[1].toUpperCase()}</span>
             </h1>
           </div>
         </motion.div>
@@ -61,7 +69,7 @@ export function Hero() {
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-full max-w-2xl px-8"
         >
           <p className="font-sans text-xl md:text-2xl text-center text-white/80 leading-relaxed">
-            AI & Software Engineering — building production ML systems, from research to deployment
+            {personalInfo.description}
           </p>
         </motion.div>
 
@@ -72,16 +80,31 @@ export function Hero() {
           transition={{ duration: 1, delay: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="self-end text-right"
         >
-          <p className="font-mono text-xs tracking-[0.3em] text-muted-foreground mb-3">CASABLANCA, MOROCCO</p>
+          <p className="font-mono text-xs tracking-[0.3em] text-muted-foreground mb-3">
+            {personalInfo.location.toUpperCase()}
+          </p>
           <div className="flex flex-col gap-2 items-end">
-            <a href="https://github.com/mal0101" target="_blank" rel="noopener noreferrer" className="font-mono text-sm tracking-wider text-white/70 hover:text-white transition-colors">
+            <a
+              href={personalInfo.github}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-sm tracking-wider text-white/70 hover:text-white transition-colors"
+            >
               GitHub
             </a>
-            <a href="https://linkedin.com/in/malak-mekyassi" target="_blank" rel="noopener noreferrer" className="font-mono text-sm tracking-wider text-white/70 hover:text-white transition-colors">
+            <a
+              href={personalInfo.linkedin}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-sm tracking-wider text-white/70 hover:text-white transition-colors"
+            >
               LinkedIn
             </a>
-            <a href="mailto:mmekyassi@gmail.com" className="font-mono text-sm tracking-wider text-white/70 hover:text-white transition-colors">
-              mmekyassi@gmail.com
+            <a
+              href={`mailto:${personalInfo.email}`}
+              className="font-mono text-sm tracking-wider text-white/70 hover:text-white transition-colors"
+            >
+              {personalInfo.email}
             </a>
           </div>
         </motion.div>

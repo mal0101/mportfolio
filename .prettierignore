@@ -1,0 +1,10 @@
+node_modules
+.next
+out
+coverage
+public
+.husky/_
+pnpm-lock.yaml
+*.log
+.env
+.env.*

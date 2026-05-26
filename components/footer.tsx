@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { ArrowUpRight } from "lucide-react"
+import { personalInfo } from "@/data/portfolio"
 
 export function Footer() {
   const [time, setTime] = useState("")
@@ -19,7 +20,7 @@ export function Footer() {
     }
 
     updateTime()
-    const interval = setInterval(updateTime, 10)
+    const interval = setInterval(updateTime, 200)
     return () => clearInterval(interval)
   }, [])
 
@@ -27,7 +28,7 @@ export function Footer() {
     <footer id="contact" className="relative bg-black">
       {/* Main CTA */}
       <motion.a
-        href="mailto:mmekyassi@gmail.com"
+        href={`mailto:${personalInfo.email}`}
         data-cursor-hover
         className="relative block overflow-hidden"
         onMouseEnter={() => setIsHovered(true)}
@@ -73,8 +74,11 @@ export function Footer() {
           {/* Contact */}
           <div>
             <p className="font-mono text-xs tracking-widest text-gray-500 mb-3">EMAIL</p>
-            <a href="mailto:mmekyassi@gmail.com" className="font-mono text-sm text-gray-300 hover:text-white transition-colors">
-              mmekyassi@gmail.com
+            <a
+              href={`mailto:${personalInfo.email}`}
+              className="font-mono text-sm text-gray-300 hover:text-white transition-colors"
+            >
+              {personalInfo.email}
             </a>
           </div>
 
@@ -83,7 +87,7 @@ export function Footer() {
             <p className="font-mono text-xs tracking-widest text-gray-500 mb-3">SOCIALS</p>
             <div className="flex flex-col gap-2">
               <a
-                href="https://github.com/mal0101"
+                href={personalInfo.github}
                 target="_blank"
                 rel="noopener noreferrer"
                 data-cursor-hover
@@ -92,7 +96,7 @@ export function Footer() {
                 GitHub
               </a>
               <a
-                href="https://linkedin.com/in/malak-mekyassi"
+                href={personalInfo.linkedin}
                 target="_blank"
                 rel="noopener noreferrer"
                 data-cursor-hover
@@ -106,9 +110,7 @@ export function Footer() {
           {/* Location & Time */}
           <div>
             <p className="font-mono text-xs tracking-widest text-gray-500 mb-3">LOCATION</p>
-            <p className="font-mono text-sm text-gray-400">
-              Casablanca, Morocco
-            </p>
+            <p className="font-mono text-sm text-gray-400">{personalInfo.location}</p>
             <p className="font-mono text-xs text-gray-500 mt-3">Local time: {time}</p>
           </div>
         </div>

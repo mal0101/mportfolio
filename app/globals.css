@@ -158,6 +158,27 @@
   color: var(--accent-foreground);
 }
 
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  .noise-overlay {
+    display: none;
+  }
+
+  .animate-marquee-left,
+  .animate-marquee-right {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Marquee animation */
 @keyframes marquee-left {
   from {

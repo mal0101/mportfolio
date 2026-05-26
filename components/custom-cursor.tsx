@@ -7,44 +7,54 @@ export function CustomCursor() {
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isHovering, setIsHovering] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
+  const [isTouchDevice, setIsTouchDevice] = useState(false)
 
   useEffect(() => {
+    setIsTouchDevice("ontouchstart" in window || navigator.maxTouchPoints > 0)
+  }, [])
+
+  useEffect(() => {
+    if (isTouchDevice) return
+
     const handleMouseMove = (e: MouseEvent) => {
       setPosition({ x: e.clientX, y: e.clientY })
       setIsVisible(true)
     }
 
-    const handleMouseEnter = () => setIsVisible(true)
-    const handleMouseLeave = () => setIsVisible(false)
+    const handleMouseLeaveWindow = () => setIsVisible(false)
 
     const handleHoverStart = (e: MouseEvent) => {
       const target = e.target as HTMLElement
-      if (target.closest("a, button, [data-cursor-hover]")) {
+      const relatedTarget = e.relatedTarget as HTMLElement | null
+      const hoverable = target.closest("a, button, [data-cursor-hover]")
+      if (hoverable && !hoverable.contains(relatedTarget)) {
         setIsHovering(true)
       }
     }
 
     const handleHoverEnd = (e: MouseEvent) => {
       const target = e.target as HTMLElement
-      if (target.closest("a, button, [data-cursor-hover]")) {
+      const relatedTarget = e.relatedTarget as HTMLElement | null
+      const hoverable = target.closest("a, button, [data-cursor-hover]")
+      if (hoverable && !hoverable.contains(relatedTarget)) {
         setIsHovering(false)
       }
     }
 
     window.addEventListener("mousemove", handleMouseMove)
-    document.addEventListener("mouseenter", handleMouseEnter)
-    document.addEventListener("mouseleave", handleMouseLeave)
+    document.addEventListener("mouseleave", handleMouseLeaveWindow)
     document.addEventListener("mouseover", handleHoverStart)
     document.addEventListener("mouseout", handleHoverEnd)
 
     return () => {
       window.removeEventListener("mousemove", handleMouseMove)
-      document.removeEventListener("mouseenter", handleMouseEnter)
-      document.removeEventListener("mouseleave", handleMouseLeave)
+      document.removeEventListener("mouseleave", handleMouseLeaveWindow)
       document.removeEventListener("mouseover", handleHoverStart)
       document.removeEventListener("mouseout", handleHoverEnd)
     }
-  }, [])
+  }, [isTouchDevice])
+
+  if (isTouchDevice) return null
 
   return (
     <>

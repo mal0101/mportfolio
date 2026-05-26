@@ -1,0 +1,37 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build output
+.next
+out
+
+# Environment files (all .env files — Vercel uses dashboard for env vars)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea
+.vscode/settings.json
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing
+coverage
+
+# Husky internals (auto-generated)
+.husky/_
+
+

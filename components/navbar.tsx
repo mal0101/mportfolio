@@ -40,7 +40,7 @@ export function Navbar() {
           isScrolled ? "bg-background/80 backdrop-blur-md border-b border-border" : ""
         }`}
       >
-        <nav className="flex items-center justify-between px-6 py-4 my-0 md:px-12 md:py-5">
+        <nav aria-label="Main navigation" className="flex items-center justify-between px-6 py-4 my-0 md:px-12 md:py-5">
           {/* Logo */}
           <a
             href="#"
@@ -111,7 +111,7 @@ export function Navbar() {
             transition={{ duration: 0.3 }}
             className="fixed inset-0 z-40 bg-background/95 backdrop-blur-lg md:hidden"
           >
-            <nav className="flex flex-col items-center justify-center h-full gap-8">
+            <nav aria-label="Mobile navigation" className="flex flex-col items-center justify-center h-full gap-8">
               {navLinks.map((link, index) => (
                 <motion.button
                   key={link.label}
