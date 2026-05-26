@@ -50,7 +50,16 @@ export function Navbar() {
             }}
             className="group flex items-center gap-2"
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-white group-hover:scale-150 transition-transform duration-300" />
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 180 180"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="group-hover:scale-110 transition-transform duration-300"
+            >
+              <path d="M30 132V48H56L90 96L124 48H150V132H126V78L94 122H86L54 78V132H30Z" fill="white" />
+            </svg>
           </a>
 
           {/* Desktop Navigation */}
