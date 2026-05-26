@@ -22,6 +22,10 @@ const url = "https://malakmekyassi.com"
 export const metadata: Metadata = {
   title,
   description,
+  icons: {
+    icon: "/icon.svg",
+    apple: "/apple-icon.png",
+  },
   openGraph: {
     title,
     description,
