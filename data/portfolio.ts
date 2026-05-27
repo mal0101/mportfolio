@@ -72,7 +72,6 @@ export const projects: Project[] = [
     description:
       "5-layer defensive ML security pipeline detecting adversarial threats in serialised model files (.pth, .safetensors, .h5) — covering LSB steganographic payload injection, Pickle RCE exploits, and backdoor attacks.",
     badge: "Research paper in preparation",
-    link: "https://github.com/mal0101/SXR",
     image: "/abstract-neural-network-visualization-dark-theme.jpg",
   },
   {
@@ -80,7 +79,6 @@ export const projects: Project[] = [
     tags: ["PPO", "SAC", "Stable-Baselines3", "Python"],
     description:
       "3-level Hierarchical Deep RL trading system over SPY, AAPL, and BTC-USD — PPO trend classifier (L1), PPO action agent (L2), SAC position-sizing agent (L3).",
-    link: "https://github.com/mal0101/HRL-Trading-System",
     image: "/futuristic-data-dashboard-dark-minimal.jpg",
   },
   {
@@ -202,17 +200,23 @@ export const leadership: Leadership[] = [
     description: "Co-led council operations, secured corporate sponsors, raised funding for student events",
   },
   {
-    role: "Participant",
+    role: "Mentee",
     organization: "McKinsey Forward Program",
     period: "Sep – Dec 2025",
     description: "Executive education and strategic consulting training",
   },
   {
-    role: "Participant",
+    role: "Mentee",
     organization: "Dell STEM Aspire Program",
     period: "Jul 2025 – Feb 2026",
     description:
       "Mentored by industry professionals via Dell STEM Aspire, gaining leadership experience and practical career insight in tech",
+  },
+  {
+    role: "Member",
+    organization: "Rewriting The Code (RTC)",
+    period: "May 2026 – Present",
+    description: "Member of the RTC community, a network supporting women in technology",
   },
 ]
 
