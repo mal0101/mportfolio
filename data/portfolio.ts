@@ -44,6 +44,13 @@ export interface Leadership {
 
 export const experiences: Experience[] = [
   {
+    role: "AI Product System & PLM Intern",
+    company: "Capgemini Engineering",
+    period: "Jul 2026 – Present",
+    location: "Casablanca",
+    highlights: ["Currently contributing to AI product system and PLM initiatives at Capgemini Engineering"],
+  },
+  {
     role: "Software Engineering Intern",
     company: "NowEdge",
     period: "Jun – Sep 2025",
