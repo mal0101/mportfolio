@@ -1,36 +1,40 @@
-import { Navbar } from "@/components/navbar"
+import { Nav } from "@/components/nav"
 import { Hero } from "@/components/hero"
-import { About } from "@/components/about"
-import { Experience } from "@/components/experience"
-import { Works } from "@/components/works"
-import { Hackathons } from "@/components/hackathons"
-import { Education } from "@/components/education"
-import { Skills } from "@/components/skills"
-import { Leadership } from "@/components/leadership"
-import { TechMarquee } from "@/components/tech-marquee"
+import { Preface } from "@/components/preface"
+import { ChapterSection } from "@/components/chapter"
+import { Work } from "@/components/work"
+import { Axon } from "@/components/axon"
+import { Toolkit } from "@/components/toolkit"
+import { Contact } from "@/components/contact"
 import { Footer } from "@/components/footer"
-import { CustomCursor } from "@/components/custom-cursor"
+import { GridOverlay } from "@/components/ui/grid-overlay"
 import { SmoothScroll } from "@/components/smooth-scroll"
-import { SectionBlend } from "@/components/section-blend"
+import { PageObservers } from "@/components/page-observers"
+import { buildChapters } from "@/lib/story"
+
+// Phase 5 (opening sequence) adds <Intro /> as the first child (PLAN-v2 §5.3).
+const story = buildChapters()
 
 export default function Home() {
   return (
-    <SmoothScroll>
-      <CustomCursor />
-      <Navbar />
-      <main>
+    <>
+      <GridOverlay />
+      <Nav />
+      <main id="main" tabIndex={-1} className="relative z-[1] outline-none">
+        <div id="nav-sentinel" aria-hidden="true" className="absolute top-0 left-0 h-px w-px" />
         <Hero />
-        <SectionBlend />
-        <About />
-        <Experience />
-        <Works />
-        <Hackathons />
-        <Education />
-        <Skills />
-        <Leadership />
-        <TechMarquee />
-        <Footer />
+        <Preface chapters={story} />
+        {story.map((c) => (
+          <ChapterSection key={c.id} chapter={c} />
+        ))}
+        <Work />
+        <Axon />
+        <Toolkit />
+        <Contact />
       </main>
-    </SmoothScroll>
+      <Footer />
+      <SmoothScroll />
+      <PageObservers />
+    </>
   )
 }

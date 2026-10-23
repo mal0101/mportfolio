@@ -1,63 +1,56 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
-import { Playfair_Display, Geist_Mono } from "next/font/google"
+import { Hubot_Sans, Martian_Mono, Newsreader } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import "lenis/dist/lenis.css"
 import "./globals.css"
+import { siteConfig } from "@/data/site"
+import { personalInfo, venture, education } from "@/data/portfolio"
 
-const playfair = Playfair_Display({
+const hubot = Hubot_Sans({ subsets: ["latin"], axes: ["wdth"], variable: "--font-hubot", display: "swap" })
+const martian = Martian_Mono({ subsets: ["latin"], axes: ["wdth"], variable: "--font-martian", display: "swap" })
+const newsreader = Newsreader({
   subsets: ["latin"],
-  variable: "--font-playfair",
+  style: ["italic"],
+  axes: ["opsz"],
+  variable: "--font-newsreader",
+  display: "swap",
 })
-
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
-})
-
-const title = "Malak Mekyassi | AI & Software Engineering"
-const description =
-  "AI & Software Engineering student building production ML systems, RAG pipelines, and defensive ML security solutions. Based in Casablanca, Morocco."
-const url = "https://malakmekyassi.com"
 
 export const metadata: Metadata = {
-  title,
-  description,
-  icons: {
-    icon: "/icon.svg",
-    apple: "/apple-icon.png",
-  },
+  metadataBase: new URL(siteConfig.url),
+  title: siteConfig.title,
+  description: siteConfig.description,
+  alternates: { canonical: "/" },
+  authors: [{ name: siteConfig.name, url: siteConfig.url }],
   openGraph: {
-    title,
-    description,
-    url,
-    siteName: "Malak Mekyassi",
-    locale: "en_US",
-    type: "website",
+    title: siteConfig.title,
+    description: siteConfig.description,
+    url: "/",
+    siteName: siteConfig.name,
+    locale: siteConfig.locale,
+    type: "profile",
   },
-  twitter: {
-    card: "summary_large_image",
-    title,
-    description,
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
+  twitter: { card: "summary_large_image", title: siteConfig.title, description: siteConfig.description },
+  robots: { index: true, follow: true },
 }
 
-export const viewport: Viewport = {
-  themeColor: "#000000",
-}
+export const viewport: Viewport = { themeColor: siteConfig.themeColor, colorScheme: "dark" }
 
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "Person",
-  name: "Malak Mekyassi",
-  url,
-  jobTitle: "AI & Software Engineering Student",
-  email: "mmekyassi@gmail.com",
-  alumniOf: "ENSAM Casablanca",
+  name: personalInfo.name,
+  url: siteConfig.url,
+  jobTitle: venture.role, // CONFIRM(malak)
+  worksFor: { "@type": "Organization", name: venture.legalName, url: venture.url },
+  alumniOf: { "@type": "CollegeOrUniversity", name: education[0].school },
+  homeLocation: { "@type": "Place", name: personalInfo.location },
+  email: personalInfo.email, // CONFIRM(malak): keep email in structured data?
+  sameAs: [personalInfo.github, personalInfo.linkedin],
+  description: personalInfo.description,
   knowsAbout: [
+    "AI agent security",
     "Machine Learning",
     "Deep Learning",
     "Reinforcement Learning",
@@ -67,19 +60,18 @@ const jsonLd = {
   ],
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${playfair.variable} ${geistMono.variable} bg-black`}>
-      <head>
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      </head>
-      <body className="font-sans antialiased overflow-x-hidden bg-black">
-        <div className="noise-overlay" aria-hidden="true" />
+    <html lang="en" className={`${hubot.variable} ${martian.variable} ${newsreader.variable}`}>
+      <body>
+        <a href="#main" className="skip">
+          Skip to content
+        </a>
         {children}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+        />
         <Analytics />
       </body>
     </html>
