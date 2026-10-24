@@ -61,11 +61,13 @@ describe("guards", () => {
 
   it("ships photos without EXIF from assets/photos only", () => {
     const jpgs = files(at("assets", "photos")).filter((f) => f.endsWith(".jpg"))
-    expect(jpgs).toHaveLength(5)
+    expect(jpgs).toHaveLength(4)
     for (const f of jpgs) {
       const buf = readFileSync(f)
       expect(buf.includes(Buffer.from("Exif\0\0")), path.basename(f)).toBe(false)
     }
-    expect(files(at("public")).filter((f) => /\.(jpe?g|png|webp|avif)$/i.test(f))).toHaveLength(0)
+    expect(
+      files(at("public")).filter((f) => /\.(jpe?g|png|webp|avif)$/i.test(f) && !f.includes("partners/")),
+    ).toHaveLength(0)
   })
 })

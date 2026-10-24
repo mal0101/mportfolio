@@ -6,11 +6,11 @@ import { Mark } from "@/components/ui/mark"
 import { Pill } from "@/components/ui/pill"
 import { ExtLink } from "@/components/ui/ext-link"
 import { LocalTime } from "@/components/local-time"
+import { LampToggle } from "@/components/lamp-toggle"
 import { getLenis, scrollToTarget } from "@/lib/lenis"
 import { personalInfo, projects, venture } from "@/data/portfolio"
 import { chapters, type Ink } from "@/data/story"
 
-// Story anchors (PLAN-v2 §5.12). Phase 6 rewrites this file in full (lamp toggle, status from 1440, §5.22 CSS).
 type Link = { href: string; label: string; ink: Ink }
 
 const LINKS: Link[] = [
@@ -164,8 +164,8 @@ export function Nav() {
           </ul>
         </nav>
         <div className="nav-right">
-          {/* CONFIRM(malak): nav status replaces the old availability badge */}
-          <p className="nav-status t-label hidden xl:flex">
+          <LampToggle className="hidden md:inline-flex" />
+          <p className="nav-status t-label hidden min-[1440px]:flex">
             <span className="sq nav-live" aria-hidden="true" />
             building axon security
           </p>
@@ -231,6 +231,7 @@ export function Nav() {
                 LinkedIn
               </ExtLink>
             </div>
+            <LampToggle />
           </div>
           <p className="flex items-center gap-3 pb-3">
             <span className="t-label text-faint">casablanca</span>

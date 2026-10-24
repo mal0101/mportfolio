@@ -65,8 +65,7 @@ export interface Venture {
   tagline: string
   summary: string
   principles: { title: string; text: string }[]
-  coverage: { clients: number; frameworks: number }
-  programs: { group: string; items: Program[] }[]
+  logos?: { name: string; src: string; alt: string; height?: number }[]
   source: string
   retrieved: string
 }
@@ -98,26 +97,11 @@ export const venture: Venture = {
       text: "Signed detection content comes in, verified offline. Nothing travels the other way.",
     },
   ],
-  coverage: { clients: 10, frameworks: 9 },
-  // CONFIRM(malak): the programs are listed exactly as on axonsecurity.tech; they are the company's own claims
-  programs: [
-    {
-      group: "Backed by",
-      items: [
-        { name: "HackNation Venture Lab", url: "https://ventures.hack-nation.ai/" },
-        { name: "AWS for Startups", url: "https://aws.amazon.com/startups/" },
-        { name: "E2B for Startups", url: "https://e2b.dev/startups/" },
-      ],
-    },
-    {
-      group: "Member of the cybersecurity program of",
-      items: [
-        {
-          name: "Anthropic Cyber Verification Program",
-          url: "https://support.claude.com/en/articles/14604842-real-time-cyber-safeguards-on-claude-opus-and-sonnet",
-        },
-      ],
-    },
+  logos: [
+    { name: "HackNation", src: "/partners/hacknation.png", alt: "HackNation Venture Lab", height: 20 },
+    { name: "AWS", src: "/partners/aws-startups.png", alt: "AWS for Startups", height: 20 },
+    { name: "E2B", src: "/partners/e2b.png", alt: "E2B for Startups", height: 20 },
+    { name: "Anthropic", src: "/partners/anthropic.svg", alt: "Anthropic Cyber Verification Program", height: 16 },
   ],
   source: "https://axonsecurity.tech",
   retrieved: "2026-10-22",
@@ -147,15 +131,6 @@ export const experiences: Experience[] = [
       "Engineered a typosquatting detection model via multi-heuristic domain classification, achieving 80% precision",
       "Architected an LTI 1.3-compliant platform with OAuth2/OpenID Connect",
     ],
-  },
-  {
-    role: "Machine Learning Intern", // [LI]
-    company: "3D Smart Factory", // [LI]
-    period: "Feb – Jun 2025", // [LI] "Feb 2025 - Jun 2025"
-    location: "Remote", // [LI]
-    start: "2025-02",
-    type: "internship",
-    highlights: [],
   },
   {
     role: "AI Trainer",

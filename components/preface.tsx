@@ -24,10 +24,10 @@ const AFTER: { href: string; label: string; title: string; ink: Ink }[] = [
 
 export function Preface({ chapters }: { chapters: Chapter[] }) {
   return (
-    <section id="preface" data-ink="uv" aria-labelledby="preface-title" className="section">
+    <section id="preface" data-ink="uv" aria-labelledby="preface" className="section">
       <div className="wrap">
         {/* CONFIRM(malak): preface title */}
-        <SectionHeader id="preface" label="preface" title="The story so far" />
+        <SectionHeader id="preface" label="preface" title="Notes" />
         <div className="grid-12 gap-y-14">
           <div className="md:col-span-6 lg:col-span-6">
             {about.map((p, i) => (
@@ -36,8 +36,8 @@ export function Preface({ chapters }: { chapters: Chapter[] }) {
               </p>
             ))}
           </div>
-          <nav aria-label="Contents" className="md:col-span-6 lg:col-span-5 lg:col-start-8">
-            <p className="t-label text-faint">contents</p>
+          <nav aria-label="Index" className="md:col-span-6 lg:col-span-5 lg:col-start-8">
+            <p className="t-label text-faint">index</p>
             <ol className="mt-3">
               {chapters.map((c) => (
                 <li key={c.id} data-ink={c.ink}>

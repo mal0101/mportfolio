@@ -20,14 +20,14 @@
 }
 
 :root {
-  --ink: #0b0a0f;
-  --ink-rgb: 11 10 15;
+  --ink: #050509;
+  --ink-rgb: 5 5 9;
   /* the background actually painted (html, body, scrolled nav, menu); lamp mode changes it */
   --ground: var(--ink);
   --ground-rgb: var(--ink-rgb);
-  --surface: #131118;
-  --paper: #efedf5;
-  --paper-rgb: 239 237 245;
+  --surface: #0f0f15;
+  --paper: #f5f4f9;
+  --paper-rgb: 245 244 249;
 
   /* fluorescent security inks (DESIGN-v2 §4): every one >= 5.38:1 on ink. UV is hers; one ink per chapter. */
   --uv: #9469ff;
@@ -48,11 +48,11 @@
   --accent-tint: rgb(var(--uv-rgb) / 0.1);
   --accent-glow: rgb(var(--uv-rgb) / 0.35);
 
-  --ghost: rgb(var(--paper-rgb) / 0.64); /* 7.18:1 */
-  --faint: rgb(var(--paper-rgb) / 0.52); /* 5.06:1  minimum for text */
-  --dim: rgb(var(--paper-rgb) / 0.3); /* 2.40:1  decorative only */
-  --hairline: rgb(var(--paper-rgb) / 0.14);
-  --hairline-2: rgb(var(--paper-rgb) / 0.07);
+  --ghost: rgb(var(--paper-rgb) / 0.6); /* 6.55:1 */
+  --faint: rgb(var(--paper-rgb) / 0.48); /* 4.58:1  minimum for text */
+  --dim: rgb(var(--paper-rgb) / 0.26); /* 2.06:1  decorative only */
+  --hairline: rgb(var(--paper-rgb) / 0.1);
+  --hairline-2: rgb(var(--paper-rgb) / 0.05);
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-io: cubic-bezier(0.76, 0, 0.24, 1);
@@ -80,9 +80,9 @@
 
 /* Lamp mode (html[data-lamp="on"], components/lamp-toggle.tsx). Contrast in DESIGN-v2 §4.2. */
 html[data-lamp="on"] {
-  --ground: #120d22;
-  --ground-rgb: 18 13 34;
-  --surface: #1a1430;
+  --ground: #0f0a1a;
+  --ground-rgb: 15 10 26;
+  --surface: #161022;
 }
 
 /* One ink per region. Derived tokens MUST be re-declared in every scope, because custom properties resolve where
@@ -259,32 +259,33 @@ html[data-lamp="on"] {
 
   /* type roles (see DESIGN §3.2) */
   .t-display-xl {
-    font-size: clamp(3.25rem, 14vw, 14rem);
-    line-height: 0.82;
+    font-size: clamp(3.25rem, 14vw, 13rem);
+    line-height: 0.8;
     font-weight: 820;
-    letter-spacing: -0.045em;
+    letter-spacing: -0.048em;
     --wdth: 100;
   }
   @media (min-width: 768px) {
     .t-display-xl {
-      --wdth: 112;
+      --wdth: 110;
     }
   }
   .t-display-l {
-    font-size: clamp(2.5rem, 6.2vw, 6.25rem);
-    line-height: 0.9;
+    font-size: clamp(2.5rem, 6.2vw, 6rem);
+    line-height: 0.88;
     font-weight: 800;
-    letter-spacing: -0.03em;
-    --wdth: 82;
+    letter-spacing: -0.032em;
+    --wdth: 84;
     max-width: 16ch;
     text-wrap: balance;
   }
   .t-display-m {
-    font-size: clamp(2rem, 4vw, 4rem);
-    line-height: 0.96;
+    font-size: clamp(2rem, 4.2vw, 3.75rem);
+    line-height: 0.9;
     font-weight: 760;
-    letter-spacing: -0.028em;
-    --wdth: 92;
+    letter-spacing: -0.03em;
+    --wdth: 94;
+    text-wrap: balance;
   }
   .t-placement {
     font-size: clamp(3rem, 7vw, 7rem);
@@ -732,7 +733,7 @@ html[data-lamp="on"] {
     visibility: visible;
     transition-delay: 0s;
   }
-  @media (min-width: 1280px) {
+  @media (min-width: 1440px) {
     .nav-right {
       position: relative;
     }
@@ -742,10 +743,12 @@ html[data-lamp="on"] {
       top: 50%;
       margin-top: -22px;
     }
-    .nav-status {
+    .nav-status,
+    .nav-right > .lamp-btn {
       transition: translate var(--dur-2) var(--ease-out);
     }
-    .nav[data-scrolled="true"] .nav-status {
+    .nav[data-scrolled="true"] .nav-status,
+    .nav[data-scrolled="true"] .nav-right > .lamp-btn {
       translate: calc(-1 * (var(--cta-w, 140px) + 20px)) 0;
     }
   }
@@ -1098,18 +1101,60 @@ html[data-lamp="on"] {
   /* ── hero ID photo ── */
   .hero-id {
     display: flex;
-    align-items: flex-end;
-    gap: 20px;
+    align-items: flex-start;
+    gap: 16px;
   }
   .hero-photo {
     position: relative;
-    flex: none;
-    width: 72px;
-    border: 1px solid var(--hairline);
+    flex: 0 0 auto;
+    width: 96px;
+    height: 112px;
+    border: 1px solid color-mix(in oklab, var(--uv) 52%, transparent);
+    transform: rotate(-1deg);
+    margin-right: 0.25rem;
+    box-shadow: 0 10px 40px -20px color-mix(in oklab, var(--uv) 60%, transparent);
+    align-self: flex-start;
+  }
+  .hero-photo--lower {
+    margin-top: clamp(0.5rem, 4vw, 2rem);
+  }
+  .hero-photo--closer {
+    margin-top: clamp(0.25rem, 2vw, 0.75rem);
+  }
+  .hero-photo--smaller {
+    width: 88px;
+    height: 104px;
+  }
+  @media (min-width: 768px) {
+    .hero-photo--smaller {
+      width: 112px;
+      height: 132px;
+    }
   }
   @media (min-width: 768px) {
     .hero-photo {
-      width: 112px;
+      width: 126px;
+      height: 148px;
+    }
+  }
+  .hero-photo__frame {
+    position: absolute;
+    inset: 4px;
+    overflow: hidden;
+    border: 1px solid color-mix(in oklab, var(--uv) 24%, transparent);
+  }
+  .hero-photo__frame .photo,
+  .hero-photo__frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 16%;
+    display: block;
+    filter: contrast(1.04) saturate(0.98);
+  }
+  @media (min-width: 768px) {
+    .hero-photo {
+      width: 128px;
     }
   }
 
@@ -1393,7 +1438,209 @@ html[data-lamp="on"] {
   }
 }
 
-/* ── v2 story: invisible ink, lamp, scroll-driven extras (PLAN-v2 §5.1 F; intro states are added in Phase 5) ── */
+/* ── opening sequence (components/intro.tsx, lib/intro.ts, DESIGN §3) ── */
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  overflow: hidden;
+  contain: strict;
+}
+.intro-ground {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -100vw;
+  width: 200vw;
+  will-change: transform;
+}
+.intro-trail {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 50%;
+  width: 22vw;
+  background: linear-gradient(90deg, rgb(var(--uv-rgb) / 0), rgb(var(--uv-rgb) / 0.07) 60%, rgb(var(--uv-rgb) / 0.16));
+}
+.intro-ink {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  right: 0;
+  background-color: var(--ink);
+}
+.intro-torch {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: 76vmin;
+  height: 76vmin;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    rgb(var(--uv-rgb) / 0.3),
+    rgb(var(--uv-rgb) / 0.12) 55%,
+    rgb(var(--uv-rgb) / 0)
+  );
+}
+.intro-tag {
+  position: absolute;
+  left: calc(50% + 20px);
+  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  margin: 0;
+  font: 450 0.75rem/1 var(--font-mono);
+  --wdth: 87.5;
+  color: var(--ghost);
+  white-space: nowrap;
+}
+.intro-fibres {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.intro-fibre {
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0;
+}
+.fibre-cyan {
+  stroke: var(--cyan);
+}
+.fibre-magenta {
+  stroke: var(--magenta);
+}
+.fibre-orange {
+  stroke: var(--orange);
+}
+.fibre-yellow {
+  stroke: var(--yellow);
+}
+
+/* opening sequence states (set by the boot script in app/layout.tsx) */
+html[data-intro="full"] .intro,
+html[data-intro="short"] .intro {
+  display: block !important;
+}
+html[data-intro="done"] .intro {
+  display: none !important;
+}
+html[data-intro="full"] .intro {
+  animation: intro-end 1ms linear 2200ms forwards;
+}
+html[data-intro="full"] .intro-ground {
+  animation: intro-sweep 1400ms var(--ease-sweep) 500ms both;
+}
+html[data-intro="full"] .intro-ink {
+  animation: intro-room 420ms steps(1, end) 80ms both;
+}
+html[data-intro="full"] .intro-torch {
+  animation: intro-strike 420ms steps(1, end) 80ms both;
+}
+html[data-intro="full"] .intro-fibre {
+  animation: intro-fibre 640ms var(--ease-out) both; /* delay inline, from x */
+}
+html[data-intro="full"] .hero-line {
+  animation: intro-fluoresce 1300ms var(--ease-out) 640ms both;
+}
+html[data-intro="full"] .hero .full-stop {
+  animation: stamp 380ms var(--ease-snap) 1300ms both;
+}
+html[data-intro="short"] .intro {
+  animation: intro-end 1ms linear 620ms forwards;
+}
+html[data-intro="short"] .intro-ground {
+  animation: intro-sweep 520ms var(--ease-sweep) 40ms both;
+}
+html[data-intro="short"] .intro-ink {
+  background-color: #100c1d;
+}
+html[data-intro="short"] :is(.intro-fibres, .intro-tag) {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-intro] .intro {
+    display: none !important;
+  }
+}
+@keyframes intro-sweep {
+  to {
+    transform: translateX(100vw);
+  }
+}
+@keyframes intro-strike {
+  0% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.9;
+  }
+  22% {
+    opacity: 0.1;
+  }
+  36% {
+    opacity: 1;
+  }
+  52% {
+    opacity: 0.3;
+  }
+  66% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes intro-room {
+  0% {
+    background-color: #0b0a0f;
+  }
+  10% {
+    background-color: #120d22;
+  }
+  22% {
+    background-color: #0b0a0f;
+  }
+  36% {
+    background-color: #120d22;
+  }
+  52% {
+    background-color: #0e0b18;
+  }
+  66% {
+    background-color: #120d22;
+  }
+  100% {
+    background-color: #100c1d;
+  }
+}
+@keyframes intro-fibre {
+  0% {
+    opacity: 0;
+  }
+  14% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes intro-fluoresce {
+  from {
+    color: var(--uv);
+  }
+}
+@keyframes intro-end {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* ── v2 story: invisible ink, lamp, scroll-driven extras (PLAN-v2 §5.1 F) ── */
 @keyframes lamp-strike {
   0% {
     opacity: 0.2;
@@ -1465,6 +1712,7 @@ html[data-lamp="on"] .photo .photo-day {
   opacity: 0;
 }
 @media print {
+  .intro,
   .photo .photo-day {
     display: none !important;
   }

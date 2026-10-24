@@ -92,21 +92,12 @@ describe("venture (Axon Security)", () => {
     expect(venture.summary.startsWith("Axon discovers every agent in your stack")).toBe(true)
   })
 
-  it("lists the programs exactly as on axonsecurity.tech", () => {
-    const items = venture.programs.flatMap((g) => g.items)
-    expect(items.map((p) => p.name)).toEqual([
-      "HackNation Venture Lab",
-      "AWS for Startups",
-      "E2B for Startups",
-      "Anthropic Cyber Verification Program",
-    ])
-    for (const p of items) expect(p.url.startsWith("https://")).toBe(true)
-  })
-
-  it("has the coverage counts", () => {
-    expect(venture.coverage).toEqual({ clients: 10, frameworks: 9 })
+  it("lists the partner logos from axonsecurity.tech", () => {
+    expect(venture.logos?.map((l) => l.name)).toEqual(["HackNation", "AWS", "E2B", "Anthropic"])
   })
 })
+
+export {}
 
 describe("content guards", () => {
   it("projects carry no image key and only https links", () => {
@@ -136,7 +127,7 @@ describe("content guards", () => {
     expect(leadership).toHaveLength(7)
     expect(hackathons).toHaveLength(3)
     expect(projects).toHaveLength(6)
-    expect(experiences).toHaveLength(5)
+    expect(experiences).toHaveLength(4)
     expect(education).toHaveLength(2)
   })
 

@@ -1,4 +1,5 @@
 import { Nav } from "@/components/nav"
+import { Intro } from "@/components/intro"
 import { Hero } from "@/components/hero"
 import { Preface } from "@/components/preface"
 import { ChapterSection } from "@/components/chapter"
@@ -12,12 +13,12 @@ import { SmoothScroll } from "@/components/smooth-scroll"
 import { PageObservers } from "@/components/page-observers"
 import { buildChapters } from "@/lib/story"
 
-// Phase 5 (opening sequence) adds <Intro /> as the first child (PLAN-v2 §5.3).
 const story = buildChapters()
 
 export default function Home() {
   return (
     <>
+      <Intro />
       <GridOverlay />
       <Nav />
       <main id="main" tabIndex={-1} className="relative z-[1] outline-none">

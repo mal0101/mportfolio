@@ -73,4 +73,39 @@ describe("HeroField", () => {
     expect(calls.drawImage).toBe(1)
     expect(() => unmount()).not.toThrow()
   })
+
+  it("blooms when the intro ends without throwing", () => {
+    vi.useFakeTimers()
+    vi.stubGlobal(
+      "Path2D",
+      class {
+        constructor(public d?: string) {}
+      },
+    )
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => setTimeout(() => cb(performance.now()), 16))
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => clearTimeout(id))
+    const { ctx, calls } = fakeContext()
+    HTMLCanvasElement.prototype.getContext = (() => ctx) as unknown as HTMLCanvasElement["getContext"]
+    document.documentElement.dataset.intro = "short"
+    ;(window as Window & { __mmIntro?: { mode: "short"; t0: number } }).__mmIntro = { mode: "short", t0: 0 }
+    const { unmount } = render(
+      <section>
+        <HeroField />
+      </section>,
+    )
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    const before = calls.drawImage
+    act(() => {
+      window.dispatchEvent(new Event("mm:intro-end"))
+    })
+    act(() => {
+      vi.advanceTimersByTime(20)
+    })
+    expect(calls.drawImage).toBeGreaterThan(before)
+    delete document.documentElement.dataset.intro
+    delete (window as Window & { __mmIntro?: unknown }).__mmIntro
+    expect(() => unmount()).not.toThrow()
+  })
 })

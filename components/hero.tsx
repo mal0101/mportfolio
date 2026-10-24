@@ -1,9 +1,6 @@
 import { HeroField } from "@/components/hero-field"
-import { Photo } from "@/components/photo"
 import { Pill } from "@/components/ui/pill"
 import { TextLink } from "@/components/ui/text-link"
-import { Corner } from "@/components/ui/reg-marks"
-import { photos } from "@/data/photos"
 import { personalInfo, venture } from "@/data/portfolio"
 
 export function Hero() {
@@ -12,14 +9,6 @@ export function Hero() {
       <HeroField />
       <div className="wrap hero-inner">
         <div className="hero-id">
-          {/* ID photo: above the fold but not the LCP element (the h1 is), so eager without preload */}
-          <div className="hero-photo">
-            <Corner position="tl" />
-            <Corner position="tr" />
-            <Corner position="bl" />
-            <Corner position="br" />
-            <Photo img={photos.portrait.img} alt={photos.portrait.alt} sizes="(min-width: 768px) 112px, 72px" eager />
-          </div>
           <div>
             <p className="t-voice-l text-paper">
               Co-founder &amp; co-CEO,{" "}
@@ -52,9 +41,8 @@ export function Hero() {
           </div>
         </div>
         <p className="t-voice mt-8 max-w-[60ch] text-faint">
-          Fig. 1. A weight tensor under UV light; something is hidden in the low bits.
-          <span className="cap-fine"> Move your cursor across it.</span>
-          <span className="cap-touch"> Tap it.</span>
+          <span className="cap-fine">Move your cursor across the field.</span>
+          <span className="cap-touch">Tap the field.</span>
         </p>
       </div>
     </section>

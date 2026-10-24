@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import { frontAt } from "@/lib/intro"
 
 /*
  * The UV lamp (DESIGN §5.11, MASTER-PLAN §7.3). A microprint field of short dashes with the M. mark hidden in
@@ -364,6 +365,8 @@ export function HeroField() {
     const fine = window.matchMedia("(hover: hover) and (pointer: fine)")
     const uvVar = getComputedStyle(document.documentElement).getPropertyValue("--uv-rgb").trim()
     const uv = uvVar ? uvVar.split(/\s+/).join(",") : "148,105,255"
+    const lampOn = () => document.documentElement.dataset.lamp === "on"
+    let onIntroEnd: (() => void) | null = null
 
     let field: Field | null = null
     let sc = scratchFor(0)
@@ -387,7 +390,8 @@ export function HeroField() {
       const lamps: Lamp[] = []
       if (lens.s > 0.002) lamps.push({ x: lens.x, y: lens.y, r: lens.r, s: lens.s })
       if (bloomLamp) lamps.push(bloomLamp)
-      render(ctx, field, lamps, reduce.matches ? 0.45 : 0, uv, sc, frame)
+      const reveal = reduce.matches ? (lampOn() ? 0.6 : 0.45) : lampOn() ? 0.6 : 0
+      render(ctx, field, lamps, reveal, uv, sc, frame)
     }
 
     const tick = (now: number) => {
@@ -524,10 +528,28 @@ export function HeroField() {
       hero.addEventListener("pointerdown", onDown, { passive: true })
       document.addEventListener("visibilitychange", onVisibility)
       reduce.addEventListener("change", onReduce)
+      window.addEventListener("mm:lamp", draw)
       if (!reduce.matches) {
         const f = field
-        // after the 600ms canvas fade-in has mostly landed
-        bloomTimer = window.setTimeout(() => startBloom(f.markX, f.markY, f.markR * 1.35), 650)
+        let bloomed = false
+        const go = () => {
+          if (bloomed || disposed) return
+          bloomed = true
+          startBloom(f.markX, f.markY, f.markR * 1.35)
+        }
+        const intro = (window as Window & { __mmIntro?: { mode: "full" | "short"; t0: number } }).__mmIntro
+        const state = document.documentElement.dataset.intro
+        if (intro && (state === "full" || state === "short")) {
+          // Bloom exactly when the torch front passes the mark; at once if the visitor skips.
+          const left = wrap.getBoundingClientRect().left
+          const at = intro.t0 + frontAt((left + f.markX) / window.innerWidth, intro.mode)
+          bloomTimer = window.setTimeout(go, Math.max(0, at - performance.now()))
+          onIntroEnd = go
+          window.addEventListener("mm:intro-end", go, { once: true })
+        } else {
+          // after the 600ms canvas fade-in has mostly landed
+          bloomTimer = window.setTimeout(go, 650)
+        }
       }
     }
 
@@ -557,6 +579,8 @@ export function HeroField() {
       hero.removeEventListener("pointerdown", onDown)
       document.removeEventListener("visibilitychange", onVisibility)
       reduce.removeEventListener("change", onReduce)
+      window.removeEventListener("mm:lamp", draw)
+      if (onIntroEnd) window.removeEventListener("mm:intro-end", onIntroEnd)
     }
   }, [])
 

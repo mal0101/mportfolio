@@ -40,7 +40,6 @@ describe("story", () => {
       expect(starts).toEqual([...starts].sort())
     }
     expect(chapters[2].entries.map(titleOf)).toEqual([
-      "3D Smart Factory",
       "NowEdge",
       "Dell STEM Aspire Program",
       "McKinsey Forward Program",
@@ -58,13 +57,7 @@ describe("story", () => {
 
   it("tells wins, roles and projects only (no events or certificates, Malak 2026-10-23)", () => {
     expect(new Set(allEntries().map((e) => e.kind))).toEqual(new Set(["school", "role", "community", "hackathon"]))
-    expect(Object.keys(photos).sort()).toEqual([
-      "aegis-poster",
-      "agorai-invitation",
-      "hackai-grey-matter",
-      "jarvislfla7-slide",
-      "portrait",
-    ])
+    expect(Object.keys(photos).sort()).toEqual(["aegis-poster", "jarvislfla7-slide", "portrait"])
   })
 
   it("attaches every note to a real entry and every figure to a real photo", () => {

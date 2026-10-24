@@ -31,8 +31,8 @@ export const chapters: ChapterMeta[] = [
     from: 2022,
     to: 2023,
     ink: "cyan",
-    title: "Arts & Métiers Casablanca",
-    lede: "Two years of preparatory classes in engineering, and a seat at Rotaract that became its presidency.",
+    title: "Foundation",
+    lede: "Preparatory classes at Arts & Métiers Casablanca, Rotaract member then president.",
   },
   {
     id: "y2024",
@@ -40,8 +40,8 @@ export const chapters: ChapterMeta[] = [
     from: 2024,
     to: 2024,
     ink: "magenta",
-    title: "From prep classes to AI",
-    lede: "A summer engineering internship at FIRST4COM, the start of the AI & Software Engineering track, and AI training work from November.",
+    title: "First build",
+    lede: "FIRST4COM internship, entry to the AI & Software Engineering track, and AI training from November.",
   },
   {
     id: "y2025",
@@ -49,9 +49,8 @@ export const chapters: ChapterMeta[] = [
     from: 2025,
     to: 2025,
     ink: "orange",
-    title: "Into production",
-    // [NEW] rewritten after the 2026-10-23 curation (events removed). CONFIRM(malak)
-    lede: "Machine learning at 3D Smart Factory, a production RAG chatbot at NowEdge, and two mentorships: Dell STEM Aspire and the McKinsey Forward Program.",
+    title: "In production",
+    lede: "Production RAG chatbot at NowEdge, with Dell STEM Aspire and McKinsey Forward mentorships.",
   },
   {
     id: "y2026",
@@ -59,18 +58,18 @@ export const chapters: ChapterMeta[] = [
     from: 2026,
     to: 2026,
     ink: "yellow",
-    title: "Under a deadline",
+    title: "Ship under pressure",
     lede: "Three hackathons, an exhibit at UM6P, a seat on the student council, and a summer at Capgemini Engineering.",
   },
 ]
 
 export const notes: Record<string, Note> = {
   "hackathon:AgorAI": {
-    when: "Mar 2026", // [D] the winners' exhibit month (23–25 March 2026, [LI]). CONFIRM(malak): hackathon month
-    team: "Team Grey Matter.", // [LI]
-    extra: "Exhibited at the Spring School – AI For Impact, UM6P Benguerir, 23–25 March 2026.", // [D] from [LI]
-    quote: "We developed Aegis to bridge a critical gap in Morocco's AI landscape.", // [LI]
-    figures: ["aegis-poster", "agorai-invitation"],
+    when: "Mar 2026",
+    team: "Team Grey Matter.",
+    extra: "Exhibited at the Spring School – AI For Impact, UM6P Benguerir, 23–25 March 2026.",
+    quote: "We developed Aegis to bridge a critical gap in Morocco's AI landscape.",
+    figures: ["aegis-poster"],
   },
   "hackathon:Mistral AI Worldwide Hackathon": {
     when: "2026", // CONFIRM(malak): month
@@ -84,6 +83,6 @@ export const notes: Record<string, Note> = {
     quote: "This 4-day sprint was unique.", // [LI]
     // [NEW] not stated in any source (linguistically accurate). CONFIRM(malak) before publishing
     aside: "Lfla7 is Darija for “the farmer”.",
-    figures: ["hackai-grey-matter", "jarvislfla7-slide"],
+    figures: ["jarvislfla7-slide"],
   },
 }

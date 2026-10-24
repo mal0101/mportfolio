@@ -9,6 +9,7 @@ import { Contact } from "@/components/contact"
 import { Footer } from "@/components/footer"
 import { shortPlacement } from "@/lib/placement"
 import { LampToggle } from "@/components/lamp-toggle"
+import { Intro } from "@/components/intro"
 import { ChapterSection } from "@/components/chapter"
 import { Preface } from "@/components/preface"
 import { Toolkit } from "@/components/toolkit"
@@ -92,7 +93,7 @@ describe("Hero", () => {
 
   it("shows the ID photo with alt text", () => {
     render(<Hero />)
-    expect(screen.getByRole("img", { name: "Portrait of Malak Mekyassi" })).toBeInTheDocument()
+    expect(screen.queryByRole("img", { name: "Portrait of Malak Mekyassi" })).not.toBeInTheDocument()
   })
 
   it("has no loading UI", () => {
@@ -112,12 +113,10 @@ describe("Axon", () => {
     expect(container.querySelector("blockquote")?.textContent).toBe("Agent security for the AI stack you already run.")
   })
 
-  it("links every program", () => {
+  it("renders partner logos", () => {
     render(<Axon />)
-    for (const group of venture.programs) {
-      for (const p of group.items) {
-        expect(screen.getByRole("link", { name: new RegExp(p.name) })).toHaveAttribute("href", p.url)
-      }
+    for (const l of venture.logos ?? []) {
+      expect(screen.getByAltText(l.alt)).toBeInTheDocument()
     }
   })
 
@@ -164,11 +163,22 @@ describe("LampToggle", () => {
   })
 })
 
+describe("Intro", () => {
+  it("is decorative and hidden until the boot script shows it", () => {
+    const { container } = render(<Intro />)
+    const root = container.querySelector(".intro") as HTMLElement
+    expect(root).toHaveAttribute("aria-hidden", "true")
+    expect(root.style.display).toBe("none")
+    expect(root.querySelectorAll(".intro-fibre")).toHaveLength(36)
+    expect(root.querySelectorAll("a, button, [tabindex]")).toHaveLength(0)
+  })
+})
+
 describe("Chapter", () => {
   const story = buildChapters()
   it("names each chapter with its years for assistive tech", () => {
     render(<ChapterSection chapter={story[3]} />)
-    expect(screen.getByRole("heading", { level: 2, name: "2026: Under a deadline" })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { level: 2, name: "2026: Ship under pressure" })).toBeInTheDocument()
     expect(screen.getByText("Jul – Aug 2026")).toBeInTheDocument()
   })
   it("shows every hackathon placement in full", () => {
@@ -178,7 +188,7 @@ describe("Chapter", () => {
   it("gives every photo alt text and hides the daylight copy", () => {
     const { container } = render(<ChapterSection chapter={story[3]} />)
     const imgs = [...container.querySelectorAll("img")]
-    expect(imgs.length).toBe(8) // 4 photos x 2 layers
+    expect(imgs.length).toBe(4) // 2 photos × 2 layers
     for (const img of imgs) {
       if (img.classList.contains("photo-day")) expect(img).toHaveAttribute("alt", "")
       else expect(img.getAttribute("alt")?.length).toBeGreaterThan(10)
@@ -194,7 +204,7 @@ describe("Chapter", () => {
 describe("Preface and Toolkit", () => {
   it("links the contents to every chapter", () => {
     render(<Preface chapters={buildChapters()} />)
-    const nav = screen.getByRole("navigation", { name: "Contents" })
+    const nav = screen.getByRole("navigation", { name: "Index" })
     const hrefs = within(nav)
       .getAllByRole("link")
       .map((a) => a.getAttribute("href"))

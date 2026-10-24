@@ -6,6 +6,7 @@ import "lenis/dist/lenis.css"
 import "./globals.css"
 import { siteConfig } from "@/data/site"
 import { personalInfo, venture, education } from "@/data/portfolio"
+import { BOOT } from "@/lib/intro"
 
 const hubot = Hubot_Sans({ subsets: ["latin"], axes: ["wdth"], variable: "--font-hubot", display: "swap" })
 const martian = Martian_Mono({ subsets: ["latin"], axes: ["wdth"], variable: "--font-martian", display: "swap" })
@@ -42,11 +43,11 @@ const jsonLd = {
   "@type": "Person",
   name: personalInfo.name,
   url: siteConfig.url,
-  jobTitle: venture.role, // CONFIRM(malak)
+  jobTitle: venture.role,
   worksFor: { "@type": "Organization", name: venture.legalName, url: venture.url },
   alumniOf: { "@type": "CollegeOrUniversity", name: education[0].school },
   homeLocation: { "@type": "Place", name: personalInfo.location },
-  email: personalInfo.email, // CONFIRM(malak): keep email in structured data?
+  email: personalInfo.email,
   sameAs: [personalInfo.github, personalInfo.linkedin],
   description: personalInfo.description,
   knowsAbout: [
@@ -62,7 +63,11 @@ const jsonLd = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${hubot.variable} ${martian.variable} ${newsreader.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${hubot.variable} ${martian.variable} ${newsreader.variable}`}>
+      <head>
+        {/* Parser-blocking, ~1.2 KB: decides the opening sequence and restores the UV lamp before first paint. */}
+        <script id="mm-boot" dangerouslySetInnerHTML={{ __html: BOOT }} />
+      </head>
       <body>
         <a href="#main" className="skip">
           Skip to content
