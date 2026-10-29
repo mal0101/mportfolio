@@ -612,10 +612,10 @@ export function HeroField() {
       kick()
     }
 
-    const rebuild = () => {
+    const rebuild = (force = false) => {
       const dims = heroSize(wrap)
       const key = `${dims.w}x${dims.h}@${window.devicePixelRatio}`
-      if (key === size && field) return // ResizeObserver's initial callback, or a no-op resize
+      if (key === size && field && !force) return // ResizeObserver's initial callback, or a no-op resize
       size = key
       const layout = heroLayout(hero, wrap, dims)
       field = buildField(layout.w, layout.h, layout.mobile, layout)
@@ -633,7 +633,7 @@ export function HeroField() {
     }
 
     // DPR changes (window dragged to another display) do not resize the box: watch the resolution query.
-    const onDpr = () => rebuild()
+    const onDpr = () => rebuild(true)
     const watchDpr = () => {
       dprQuery?.removeEventListener("change", onDpr)
       dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`)
@@ -683,14 +683,31 @@ export function HeroField() {
     })
     const ro = new ResizeObserver(() => {
       window.clearTimeout(resizeTimer)
-      resizeTimer = window.setTimeout(rebuild, 150)
+      resizeTimer = window.setTimeout(() => rebuild(), 150)
     })
 
     const init = () => {
       if (disposed || started) return
       started = true
+      const fontsLoaded = !document.fonts || document.fonts.status === "loaded"
       rebuild()
       if (!field) return // canvas unavailable: the CSS dots stay
+      if (!fontsLoaded) {
+        // Init ran on the stall cap, with fallback metrics: the copy boxes (so the portrait) can differ once the web fonts
+        // land. Place it again then, but only if the rect really moved (the usual case is that it did not).
+        const settle = () => {
+          if (disposed || !field) return
+          const L = heroLayout(hero, wrap)
+          const r = placePortrait(L)
+          const o = field.rect
+          if (
+            !!r !== !!o ||
+            (r && o && (Math.abs(r.x - o.x) > 0.5 || Math.abs(r.y - o.y) > 0.5 || Math.abs(r.h - o.h) > 0.5))
+          )
+            rebuild(true)
+        }
+        document.fonts.ready.then(settle, () => {})
+      }
       wrap.dataset.ready = "true"
       io.observe(wrap)
       ro.observe(wrap)

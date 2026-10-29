@@ -298,7 +298,15 @@ Server components unless noted. Helpers live in `components/ui`.
     stalls. Init runs once; the photo may decode before or after it (the cutout is baked at whichever comes second).
     While an opening is playing, init runs in its own idle slot (`requestIdleCallback`, timeout `max(120, collapse - 700)`
     ms; a 60ms timer where it is missing), not inside the font callbacks, so it never shares a task with hydration or
-    the overlay's prep. `draw()` skips a frame whose inputs (field/cutout version, lens, bloom lamp, lamp mode, reduced
+    the overlay's prep. The portrait is placed once (v3.2.1): the intro (before go) and HeroField (after go) read the
+    same boxes, so they get the same rect. `textBoxes` takes the full stop's centre from its rect and its size from
+    `offsetWidth/Height` (the opening holds it at `scale(0)` from go until the overlay clears, which used to drop its box
+    whenever HeroField started after go and placed the portrait 36-60px lower than the overlay at most desktop sizes,
+    1440x780 and 1512x860 included), and `heroLayout` measures the name with
+    its scroll-driven `name-compress` animation off when the page is scrolled (a deep link or a reload mid-page used
+    to place the portrait for the narrowed name). If init ran on the 3s stall cap with fallback fonts, one check runs
+    when `fonts.ready` lands and rebuilds only if the rect really moved. A resize re-places it (debounced 150ms).
+    `draw()` skips a frame whose inputs (field/cutout version, lens, bloom lamp, lamp mode, reduced
     motion) equal the last one's, so the hand-off bloom's 700ms hold costs one draw, not 40. `portraitDots`,
     `matteCanvas` and `bakeCutout` are memoised in `lib/portrait.ts` (one entry each; the dots keyed by rect and pitch,
     the cutout by photo URL and pixel size), shared with the intro.
@@ -526,6 +534,8 @@ layer are hidden.
 
 ## 10. Changelog
 
+- **2026-10-29 v3.2.1: portrait placed once (no load jump).** The overlay's portrait and HeroField's now share one rect
+  (full stop box kept while scaled to 0; name measured at rest when scrolled). Details in §5.11.
 - **2026-10-29 v3.2: ready-gated opening.** The overlay is plain ink until fonts, portrait and layout are ready; the
   sequence clock starts at go (full by 900ms from `t0`, short by 1600ms, otherwise a 300ms soft abort that first waits
   for the web fonts, capped at 2800ms). No fallback-font text or reveal, no stray square, no mid-reel dash pop-in;

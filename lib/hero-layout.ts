@@ -24,7 +24,19 @@ export function textBoxes(hero: HTMLElement, origin: DOMRect, pad: number): Box[
     const fs = n.parentElement ? parseFloat(getComputedStyle(n.parentElement).fontSize) || 0 : 0
     for (const r of range.getClientRects()) add(r, fs)
   }
-  inner.querySelectorAll(".full-stop, .pill").forEach((el) => add(el.getBoundingClientRect()))
+  inner.querySelectorAll(".pill").forEach((el) => add(el.getBoundingClientRect()))
+  // The full stop is scaled around its centre by the opening (`intro-land` rests at scale(0) until the overlay clears,
+  // which would collapse its rect to nothing and drop it from the boxes): take the centre from the rect and the size from
+  // the layout box, so the boxes (and the portrait placed from them) do not depend on when this runs.
+  inner.querySelectorAll<HTMLElement>(".full-stop").forEach((el) => {
+    const r = el.getBoundingClientRect()
+    const w = el.offsetWidth || r.width
+    const h = el.offsetHeight || r.height
+    if (!w || !h) return
+    const cx = r.left + r.width / 2
+    const cy = r.top + r.height / 2
+    add({ left: cx - w / 2, right: cx + w / 2, top: cy - h / 2, bottom: cy + h / 2, width: w, height: h } as DOMRect)
+  })
   return out
 }
 
@@ -48,6 +60,26 @@ export function heroSize(wrap: HTMLElement) {
  */
 export function heroLayout(hero: HTMLElement, wrap: HTMLElement, size = heroSize(wrap)) {
   const { w, mobile, rect } = size
+  // The name narrows while the page scrolls (a scroll-driven animation on the h1, `name-compress`): measured scrolled
+  // (a deep link, a reload mid-page) the copy boxes are narrower than at rest and the portrait would be placed for
+  // them, then sit over the name when the page returns to the top. Measure the name at rest, always.
+  const name = window.scrollY > 0 ? hero.querySelector<HTMLElement>(".hero-name") : null
+  const kept = name?.style.animation ?? ""
+  if (name) name.style.animation = "none"
+  try {
+    return measureLayout(hero, size, w, mobile, rect)
+  } finally {
+    if (name) name.style.animation = kept
+  }
+}
+
+function measureLayout(
+  hero: HTMLElement,
+  size: ReturnType<typeof heroSize>,
+  w: number,
+  mobile: boolean,
+  rect: DOMRect,
+) {
   const inner = hero.querySelector(".hero-inner")
   const innerRect = inner?.getBoundingClientRect()
   const padR = inner ? parseFloat(getComputedStyle(inner).paddingRight) || 0 : 0
