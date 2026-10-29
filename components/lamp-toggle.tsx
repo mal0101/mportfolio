@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 const KEY = "mm-lamp"
 
 /** Switches the UV lamp: html[data-lamp="on"], remembered per browser, announced to the hero canvas and other toggles. */
-export function setLamp(on: boolean) {
+function setLamp(on: boolean) {
   const d = document.documentElement
   if (on) d.dataset.lamp = "on"
   else delete d.dataset.lamp
@@ -17,7 +17,7 @@ export function setLamp(on: boolean) {
   window.dispatchEvent(new CustomEvent<boolean>("mm:lamp", { detail: on }))
 }
 
-export function useLamp(): [boolean, (on: boolean) => void] {
+function useLamp(): [boolean, (on: boolean) => void] {
   const [on, setOn] = useState(false)
   useEffect(() => {
     setOn(document.documentElement.dataset.lamp === "on") // the boot script may have restored it before hydration

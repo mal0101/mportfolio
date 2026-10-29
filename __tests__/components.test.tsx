@@ -10,6 +10,7 @@ import { Footer } from "@/components/footer"
 import { shortPlacement } from "@/lib/placement"
 import { LampToggle } from "@/components/lamp-toggle"
 import { Intro } from "@/components/intro"
+import { INTRO } from "@/lib/intro"
 import { ChapterSection } from "@/components/chapter"
 import { Preface } from "@/components/preface"
 import { Toolkit } from "@/components/toolkit"
@@ -91,7 +92,7 @@ describe("Hero", () => {
     expect(axon).toHaveAttribute("rel", "noopener noreferrer")
   })
 
-  it("shows the ID photo with alt text", () => {
+  it("renders no portrait <img> in the hero (the portrait lives in the field canvas)", () => {
     render(<Hero />)
     expect(screen.queryByRole("img", { name: "Portrait of Malak Mekyassi" })).not.toBeInTheDocument()
   })
@@ -113,11 +114,29 @@ describe("Axon", () => {
     expect(container.querySelector("blockquote")?.textContent).toBe("Agent security for the AI stack you already run.")
   })
 
-  it("renders partner logos", () => {
+  it("renders partner logos as labelled, safe external links", () => {
     render(<Axon />)
     for (const l of venture.logos ?? []) {
-      expect(screen.getByAltText(l.alt)).toBeInTheDocument()
+      const link = screen.getByRole("link", { name: l.alt })
+      expect(link).toHaveAttribute("aria-label", l.alt)
+      expect(link).toHaveAttribute("href", l.href)
+      expect(link).toHaveAttribute("rel", "noopener noreferrer")
+      const img = link.querySelector("img")
+      expect(img).toHaveAttribute("alt", "")
+      expect(Number(img?.getAttribute("width"))).toBeGreaterThan(0)
+      expect(Number(img?.getAttribute("height"))).toBeGreaterThan(0)
     }
+  })
+
+  it("labels both partner groups", () => {
+    render(<Axon />)
+    expect(screen.getByText("Backed by")).toBeInTheDocument()
+    expect(screen.getByText("Member of the cybersecurity program of")).toBeInTheDocument()
+  })
+
+  it("names the co-founder", () => {
+    render(<Axon />)
+    expect(screen.getByText(`${venture.role}, with ${venture.cofounder}`)).toBeInTheDocument()
   })
 
   it("renders every principle", () => {
@@ -169,8 +188,33 @@ describe("Intro", () => {
     const root = container.querySelector(".intro") as HTMLElement
     expect(root).toHaveAttribute("aria-hidden", "true")
     expect(root.style.display).toBe("none")
-    expect(root.querySelectorAll(".intro-fibre")).toHaveLength(36)
-    expect(root.querySelectorAll("a, button, [tabindex]")).toHaveLength(0)
+    expect(root.querySelectorAll("a, button, input, [tabindex]")).toHaveLength(0)
+    expect(root.textContent).not.toMatch(/loading/i)
+  })
+  it("renders the year reel: four chapter years plus now, and one canvas", () => {
+    const { container } = render(<Intro />)
+    const root = container.querySelector(".intro") as HTMLElement
+    expect([...root.querySelectorAll(".intro-num")].map((n) => n.textContent)).toEqual([
+      "2022",
+      "2024",
+      "2025",
+      "2026",
+      "now",
+    ])
+    expect(root.querySelectorAll(".intro-cap")[0].textContent).toBe("Foundation")
+    expect(root.querySelectorAll("canvas")).toHaveLength(1)
+  })
+  it("carries the flying full stop, a plain square that is never focusable", () => {
+    const { container } = render(<Intro />)
+    const stop = container.querySelector(".intro .intro-stop") as HTMLElement
+    expect(stop).toBeInTheDocument()
+    expect(stop.textContent).toBe("")
+  })
+  it("writes its timings from INTRO as inline custom properties", () => {
+    const { container } = render(<Intro />)
+    const root = container.querySelector(".intro") as HTMLElement
+    expect(root.style.getPropertyValue("--i-collapse")).toBe(`${INTRO.full.collapse}ms`)
+    expect(root.style.getPropertyValue("--i-reel")).toBe(`${INTRO.full.reel}ms`)
   })
 })
 

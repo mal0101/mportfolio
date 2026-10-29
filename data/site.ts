@@ -8,7 +8,7 @@ export const siteConfig = {
   title: "Malak Mekyassi — Co-founder & co-CEO, Axon Security",
   description:
     "Co-founder & co-CEO of Axon Security, agent security for the AI stack you already run. AI & software engineer in Casablanca, from ML research to deployment.",
-  lastUpdated: "2026-10-22",
+  lastUpdated: "2026-10-29",
   locale: "en_US",
   themeColor: "#0b0a0f",
 }

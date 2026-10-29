@@ -209,11 +209,21 @@ export function Nav() {
                 style={{ "--i": i } as React.CSSProperties}
                 onClick={(e) => onMenuLink(e, m.href)}
               >
-                <span className="flex items-baseline gap-4">
+                <span className="flex items-baseline gap-4 whitespace-nowrap">
                   <span className="sq" aria-hidden="true" />
                   {m.label}
                 </span>
-                <span className="hint">{m.hint}</span>
+                <span className="hint">
+                  {m.hint.startsWith("since ") ? (
+                    <>
+                      {/* "since" drops on narrow phones so "Now: Axon" stays on one line */}
+                      <span className="hint-since">since </span>
+                      {m.hint.slice(6)}
+                    </>
+                  ) : (
+                    m.hint
+                  )}
+                </span>
               </a>
             </li>
           ))}

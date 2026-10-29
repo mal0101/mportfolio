@@ -29,7 +29,7 @@
   --paper: #f5f4f9;
   --paper-rgb: 245 244 249;
 
-  /* fluorescent security inks (DESIGN-v2 §4): every one >= 5.38:1 on ink. UV is hers; one ink per chapter. */
+  /* fluorescent security inks (DESIGN §4.1): every one >= 5.38:1 on ink. UV is hers; one ink per chapter. */
   --uv: #9469ff;
   --uv-rgb: 148 105 255;
   --cyan: #1fe0ff;
@@ -57,12 +57,11 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-io: cubic-bezier(0.76, 0, 0.24, 1);
   --ease-snap: cubic-bezier(0.5, 0, 0.1, 1);
-  /* the opening torch only (lib/intro.ts INTRO.ease must match) */
-  --ease-sweep: cubic-bezier(0.45, 0, 0.2, 1);
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-roll: cubic-bezier(0.65, 0, 0.3, 1);
   --dur-1: 180ms;
   --dur-2: 450ms;
   --dur-3: 900ms;
-  --dur-4: 1400ms;
 
   --max: 1520px;
   --edge: clamp(20px, 4.4vw, 72px);
@@ -78,7 +77,7 @@
   }
 }
 
-/* Lamp mode (html[data-lamp="on"], components/lamp-toggle.tsx). Contrast in DESIGN-v2 §4.2. */
+/* Lamp mode (html[data-lamp="on"], components/lamp-toggle.tsx). Contrast in DESIGN §4.2. */
 html[data-lamp="on"] {
   --ground: #0f0a1a;
   --ground-rgb: 15 10 26;
@@ -819,10 +818,16 @@ html[data-lamp="on"] {
     --wdth: 90;
   }
   .menu-link .hint {
+    white-space: nowrap;
     font: 450 12px/1 var(--font-mono);
     letter-spacing: 0;
     --wdth: 87.5;
     color: var(--faint);
+  }
+  @media (max-width: 429px) {
+    .menu-link .hint-since {
+      display: none;
+    }
   }
   .menu-link:hover,
   .menu-link:focus-visible {
@@ -882,6 +887,11 @@ html[data-lamp="on"] {
       display: none;
     }
   }
+  /* the hint names the portrait: hide it when no portrait fits the hero (short phones fall back to the mark) */
+  .hero:has(.hero-field[data-mode="mark"], .hero-field[data-mode="none"]) .cap-fine,
+  .hero:has(.hero-field[data-mode="mark"], .hero-field[data-mode="none"]) .cap-touch {
+    display: none;
+  }
   .hero-field {
     position: absolute;
     inset: 0;
@@ -918,13 +928,13 @@ html[data-lamp="on"] {
     .hero-field {
       inset: 0 0 auto 0;
       height: 52%;
-      -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent);
-      mask-image: linear-gradient(180deg, #000 55%, transparent);
+      -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent);
+      mask-image: linear-gradient(180deg, #000 70%, transparent);
       -webkit-mask-composite: source-over;
       mask-composite: add;
     }
     .hero-field::before {
-      background-size: 10px 10px;
+      background-size: 8px 8px; /* the mobile field pitch (lib/hero-layout.ts) */
     }
   }
   @supports (animation-timeline: scroll()) {
@@ -978,15 +988,45 @@ html[data-lamp="on"] {
     height: 2px;
     background: var(--accent);
   }
-  .axon-link {
-    display: inline-flex;
-    align-items: center;
-    min-height: 32px;
-    transition: color var(--dur-1) var(--ease-out);
+  .axon-partners {
+    position: relative;
+    border-top: 1px solid var(--hairline);
+    padding-top: 28px;
   }
-  .axon-link:hover,
-  .axon-link:focus-visible {
-    color: var(--accent);
+  .axon-partners::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: 0;
+    width: 24px;
+    height: 2px;
+    background: var(--accent);
+  }
+  [data-guest="axon"] .axon-partners img {
+    filter: brightness(0) invert(0.96);
+    opacity: 0.7;
+    transition:
+      opacity var(--dur-1) var(--ease-out),
+      filter var(--dur-1) var(--ease-out),
+      translate var(--dur-1) var(--ease-out);
+  }
+  [data-guest="axon"] .axon-partners a:hover img,
+  [data-guest="axon"] .axon-partners a:focus-visible img {
+    opacity: 1;
+    filter: brightness(0) invert(0.96) drop-shadow(0 0 14px rgb(var(--lime-rgb) / 0.45));
+    translate: 0 -2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-guest="axon"] .axon-partners a:hover img,
+    [data-guest="axon"] .axon-partners a:focus-visible img {
+      translate: none;
+    }
+  }
+  @media print {
+    [data-guest="axon"] .axon-partners img {
+      filter: brightness(0);
+      opacity: 1;
+    }
   }
 
   /* ── work ─────────────────────────────────────────────────────────── */
@@ -1098,64 +1138,11 @@ html[data-lamp="on"] {
     content: "Fig. " counter(fig) ". ";
   }
 
-  /* ── hero ID photo ── */
+  /* ── hero id block ── */
   .hero-id {
     display: flex;
     align-items: flex-start;
     gap: 16px;
-  }
-  .hero-photo {
-    position: relative;
-    flex: 0 0 auto;
-    width: 96px;
-    height: 112px;
-    border: 1px solid color-mix(in oklab, var(--uv) 52%, transparent);
-    transform: rotate(-1deg);
-    margin-right: 0.25rem;
-    box-shadow: 0 10px 40px -20px color-mix(in oklab, var(--uv) 60%, transparent);
-    align-self: flex-start;
-  }
-  .hero-photo--lower {
-    margin-top: clamp(0.5rem, 4vw, 2rem);
-  }
-  .hero-photo--closer {
-    margin-top: clamp(0.25rem, 2vw, 0.75rem);
-  }
-  .hero-photo--smaller {
-    width: 88px;
-    height: 104px;
-  }
-  @media (min-width: 768px) {
-    .hero-photo--smaller {
-      width: 112px;
-      height: 132px;
-    }
-  }
-  @media (min-width: 768px) {
-    .hero-photo {
-      width: 126px;
-      height: 148px;
-    }
-  }
-  .hero-photo__frame {
-    position: absolute;
-    inset: 4px;
-    overflow: hidden;
-    border: 1px solid color-mix(in oklab, var(--uv) 24%, transparent);
-  }
-  .hero-photo__frame .photo,
-  .hero-photo__frame img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: 50% 16%;
-    display: block;
-    filter: contrast(1.04) saturate(0.98);
-  }
-  @media (min-width: 768px) {
-    .hero-photo {
-      width: 128px;
-    }
   }
 
   /* ── preface contents ── */
@@ -1229,6 +1216,13 @@ html[data-lamp="on"] {
     vertical-align: top;
     color: var(--faint);
     letter-spacing: 0;
+  }
+  @media (max-width: 379px) {
+    /* "2022 to 2023" is wider than a 320px content box at the clamp minimum */
+    .chapter-to {
+      display: block;
+      margin: 0.75rem 0 0;
+    }
   }
 
   /* timeline: spine between columns 3 and 4 (lg) / 2 and 3 (md) / at the left edge (mobile) */
@@ -1338,6 +1332,7 @@ html[data-lamp="on"] {
     display: inline-flex;
     align-items: center;
     gap: 10px;
+    white-space: nowrap;
     min-height: 44px;
     font: 450 13px/1 var(--font-mono);
     --wdth: 87.5;
@@ -1438,7 +1433,11 @@ html[data-lamp="on"] {
   }
 }
 
-/* ── opening sequence (components/intro.tsx, lib/intro.ts, DESIGN §3) ── */
+/* ── opening sequence "Exposure" (components/intro.tsx, components/intro-stage.tsx, lib/intro.ts, DESIGN §6.1) ──
+   Timings are custom properties from INTRO (--i-*), written inline on .intro and on :root. The reel is CSS only;
+   the canvas (dash field, converge, exposure flash) is drawn by IntroStage. The ending is a hand-off, never a box:
+   the ink clears, the overlay portrait crossfades into the page's own, and a UV square flies from "now" to the hero
+   full stop (IntroStage writes --i-stop-* and --i-from-*). */
 .intro {
   position: fixed;
   inset: 0;
@@ -1446,82 +1445,100 @@ html[data-lamp="on"] {
   pointer-events: none;
   overflow: hidden;
   contain: strict;
+  background: var(--ink);
+  --yr: clamp(88px, 16vw, 280px);
 }
-.intro-ground {
+.intro-canvas {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -100vw;
-  width: 200vw;
-  will-change: transform;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
 }
-.intro-trail {
+.intro-top {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 50%;
-  width: 22vw;
-  background: linear-gradient(90deg, rgb(var(--uv-rgb) / 0), rgb(var(--uv-rgb) / 0.07) 60%, rgb(var(--uv-rgb) / 0.16));
-}
-.intro-ink {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  right: 0;
-  background-color: var(--ink);
-}
-.intro-torch {
-  position: absolute;
-  left: 50%;
-  top: 58%;
-  width: 76vmin;
-  height: 76vmin;
-  translate: -50% -50%;
-  border-radius: 50%;
-  background: radial-gradient(
-    closest-side,
-    rgb(var(--uv-rgb) / 0.3),
-    rgb(var(--uv-rgb) / 0.12) 55%,
-    rgb(var(--uv-rgb) / 0)
-  );
-}
-.intro-tag {
-  position: absolute;
-  left: calc(50% + 20px);
-  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  top: 20px;
+  left: var(--edge);
+  right: var(--edge);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
   margin: 0;
   font: 450 0.75rem/1 var(--font-mono);
   --wdth: 87.5;
   color: var(--ghost);
   white-space: nowrap;
 }
-.intro-fibres {
+.intro-reel {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  left: var(--edge);
+  right: var(--edge);
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
 }
-.intro-fibre {
-  fill: none;
-  stroke-width: 1.6;
-  stroke-linecap: round;
+.intro-slot {
+  position: relative;
+  height: calc(var(--yr) * 0.98 + 26px);
+  overflow: hidden;
+}
+.intro-yr {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-start;
+  gap: 8px;
+  white-space: nowrap;
+}
+@media (min-width: 768px) {
+  .intro-slot {
+    height: calc(var(--yr) * 0.98);
+  }
+  .intro-yr {
+    flex-direction: row;
+    align-items: baseline;
+    gap: clamp(14px, 2vw, 32px);
+  }
+}
+.intro-num {
+  font: 800 var(--yr) / 0.98 var(--font-sans);
+  --wdth: 125;
+  letter-spacing: -0.04em;
+  color: var(--ink-c);
+}
+.intro-stop {
+  position: absolute;
+  left: var(--i-stop-x, 50%);
+  top: var(--i-stop-y, 50%);
+  width: var(--i-stop-s, 16px);
+  height: var(--i-stop-s, 16px);
+  background: var(--uv);
   opacity: 0;
 }
-.fibre-cyan {
-  stroke: var(--cyan);
+.intro-cap {
+  font: 450 0.8125rem/1 var(--font-mono);
+  --wdth: 87.5;
+  color: var(--ghost);
+  padding-bottom: 0.2em;
 }
-.fibre-magenta {
-  stroke: var(--magenta);
+.intro-yr-cyan {
+  --ink-c: var(--cyan);
 }
-.fibre-orange {
-  stroke: var(--orange);
+.intro-yr-magenta {
+  --ink-c: var(--magenta);
 }
-.fibre-yellow {
-  stroke: var(--yellow);
+.intro-yr-orange {
+  --ink-c: var(--orange);
+}
+.intro-yr-yellow {
+  --ink-c: var(--yellow);
+}
+.intro-yr-now {
+  --ink-c: var(--uv);
 }
 
-/* opening sequence states (set by the boot script in app/layout.tsx) */
+/* sequence states (set by the boot script in app/layout.tsx) */
 html[data-intro="full"] .intro,
 html[data-intro="short"] .intro {
   display: block !important;
@@ -1530,102 +1547,97 @@ html[data-intro="done"] .intro {
   display: none !important;
 }
 html[data-intro="full"] .intro {
-  animation: intro-end 1ms linear 2200ms forwards;
-}
-html[data-intro="full"] .intro-ground {
-  animation: intro-sweep 1400ms var(--ease-sweep) 500ms both;
-}
-html[data-intro="full"] .intro-ink {
-  animation: intro-room 420ms steps(1, end) 80ms both;
-}
-html[data-intro="full"] .intro-torch {
-  animation: intro-strike 420ms steps(1, end) 80ms both;
-}
-html[data-intro="full"] .intro-fibre {
-  animation: intro-fibre 640ms var(--ease-out) both; /* delay inline, from x */
-}
-html[data-intro="full"] .hero-line {
-  animation: intro-fluoresce 1300ms var(--ease-out) 640ms both;
-}
-html[data-intro="full"] .hero .full-stop {
-  animation: stamp 380ms var(--ease-snap) 1300ms both;
+  animation:
+    intro-clear 320ms var(--ease-soft) var(--i-collapse) forwards,
+    intro-end 1ms linear calc(var(--i-collapse) + var(--i-collapse-dur)) forwards;
 }
 html[data-intro="short"] .intro {
-  animation: intro-end 1ms linear 620ms forwards;
+  animation:
+    intro-clear 220ms var(--ease-soft) var(--i-s-collapse) forwards,
+    intro-end 1ms linear calc(var(--i-s-collapse) + var(--i-s-collapse-dur)) forwards;
 }
-html[data-intro="short"] .intro-ground {
-  animation: intro-sweep 520ms var(--ease-sweep) 40ms both;
+/* the full stop: a UV square leaves the end of "now" and lands on the hero's full stop, which takes over as it vanishes */
+html[data-intro="full"] .intro-stop {
+  animation: intro-fly var(--i-collapse-dur) var(--ease-snap) var(--i-collapse) forwards;
 }
-html[data-intro="short"] .intro-ink {
-  background-color: #100c1d;
+html[data-intro="short"] .intro-stop {
+  animation: intro-fly var(--i-s-collapse-dur) var(--ease-snap) var(--i-s-collapse) forwards;
 }
-html[data-intro="short"] :is(.intro-fibres, .intro-tag) {
+html[data-intro="short"] .intro-reel {
   display: none;
+}
+/* the reel: each year rolls in from below (backwards fill) and out upward (forwards fill); base state is in place */
+html[data-intro="full"] .intro-yr {
+  animation:
+    intro-roll-in calc(var(--i-reel) * 0.92) var(--ease-roll) calc(var(--i-reel) * var(--k)) backwards,
+    intro-roll-out calc(var(--i-reel) * 0.92) var(--ease-roll) calc(var(--i-reel) * (var(--k) + 1)) forwards;
+}
+html[data-intro="full"] .intro-yr:nth-child(4) {
+  animation-delay: calc(var(--i-reel) * 3), var(--i-now); /* 2026 holds until it becomes "now" */
+}
+html[data-intro="full"] .intro-yr-now {
+  animation: intro-roll-in calc(var(--i-reel) * 0.92) var(--ease-roll) var(--i-now) backwards;
+}
+/* quick, so the faded "now" never sits over the hero copy (on phones it lands on the hint line) */
+html[data-intro="full"] :is(.intro-top, .intro-reel) {
+  animation: intro-fade 180ms var(--ease-out) var(--i-collapse) forwards;
+}
+html[data-intro="short"] .intro-top {
+  animation: intro-fade 200ms var(--ease-out) var(--i-s-collapse) forwards;
+}
+/* the hero name develops, then its full stop lands as the overlay arrives (colour only: never the h1's opacity) */
+html[data-intro="full"] .hero-line {
+  animation: intro-fluoresce 900ms var(--ease-soft) var(--i-collapse) both;
+}
+html[data-intro="full"] .hero .full-stop {
+  animation: intro-land 1ms linear calc(var(--i-collapse) + var(--i-collapse-dur)) both;
+}
+html[data-intro="short"] .hero-line {
+  animation: intro-fluoresce 700ms var(--ease-soft) var(--i-s-collapse) both;
+}
+html[data-intro="short"] .hero .full-stop {
+  animation: intro-land 1ms linear calc(var(--i-s-collapse) + var(--i-s-collapse-dur)) both;
 }
 @media (prefers-reduced-motion: reduce) {
   html[data-intro] .intro {
     display: none !important;
   }
 }
-@keyframes intro-sweep {
+@keyframes intro-clear {
   to {
-    transform: translateX(100vw);
+    background-color: transparent;
   }
 }
-@keyframes intro-strike {
+@keyframes intro-fly {
   0% {
-    opacity: 0;
-  }
-  10% {
-    opacity: 0.9;
-  }
-  22% {
-    opacity: 0.1;
-  }
-  36% {
     opacity: 1;
-  }
-  52% {
-    opacity: 0.3;
-  }
-  66% {
-    opacity: 1;
+    transform: translate(var(--i-from-dx, 0), var(--i-from-dy, 0)) scale(var(--i-from-k, 1));
   }
   100% {
     opacity: 1;
+    transform: none;
   }
 }
-@keyframes intro-room {
-  0% {
-    background-color: #0b0a0f;
+@keyframes intro-land {
+  from {
+    transform: scale(0);
   }
-  10% {
-    background-color: #120d22;
-  }
-  22% {
-    background-color: #0b0a0f;
-  }
-  36% {
-    background-color: #120d22;
-  }
-  52% {
-    background-color: #0e0b18;
-  }
-  66% {
-    background-color: #120d22;
-  }
-  100% {
-    background-color: #100c1d;
+  to {
+    transform: scale(1);
   }
 }
-@keyframes intro-fibre {
-  0% {
-    opacity: 0;
+@keyframes intro-roll-in {
+  from {
+    transform: translateY(110%);
   }
-  14% {
-    opacity: 1;
+}
+@keyframes intro-roll-out {
+  to {
+    transform: translateY(-110%);
   }
-  100% {
+}
+@keyframes intro-fade {
+  to {
     opacity: 0;
   }
 }
@@ -1640,7 +1652,7 @@ html[data-intro="short"] :is(.intro-fibres, .intro-tag) {
   }
 }
 
-/* ── v2 story: invisible ink, lamp, scroll-driven extras (PLAN-v2 §5.1 F) ── */
+/* ── v2 story: invisible ink, lamp, scroll-driven extras (DESIGN §4.2, §6.2) ── */
 @keyframes lamp-strike {
   0% {
     opacity: 0.2;

@@ -1,13 +1,29 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { frontAt } from "@/lib/intro"
+import { INTRO, introClock } from "@/lib/intro"
+import { heroLayout, heroSize } from "@/lib/hero-layout"
+import {
+  PORTRAIT,
+  coreAlpha,
+  dotPitchFor,
+  bakeCutout,
+  drawCell,
+  matteCanvas,
+  payloadMask,
+  placePortrait,
+  portraitDots,
+  type Box,
+  type Rect,
+} from "@/lib/portrait"
+import { photos } from "@/data/photos"
 
 /*
- * The UV lamp (DESIGN §5.11, MASTER-PLAN §7.3). A microprint field of short dashes with the M. mark hidden in
- * its "low bits": payload cells are drawn exactly like their neighbours until a lamp passes over them.
+ * The UV lamp (DESIGN §5.11). A microprint field of short dashes with a portrait of Malak hidden in its "low bits":
+ * the portrait's halftone dots (their own fine grid) are invisible until a lamp passes over them, and the lens core
+ * cross-dissolves into the real colour photo. If no portrait fits the hero, the M. mark is hidden instead.
  * Renders on demand only: no animation frame is scheduled while nothing changes, and none while the hero is
- * off-screen or the tab is hidden. Under reduced motion it draws one static frame with the mark at 45%.
+ * off-screen or the tab is hidden. Under reduced motion it draws one static frame with the halftone at 30% (mark 45%).
  */
 
 type Field = {
@@ -25,18 +41,29 @@ type Field = {
   payload: Uint8Array
   payloadIdx: Uint32Array
   base: HTMLCanvasElement
-  markX: number
-  markY: number
-  markR: number
+  mode: "portrait" | "mark"
+  rect: Rect | null
+  // portrait mode: the fine dot grid, bucketed by field cell (CSR) so lamps visit only the dots in reach
+  dots: { x: Float32Array; y: Float32Array; tone: Float32Array }
+  cellStart: Uint32Array
+  dotIdx: Uint32Array
+  cover: Float32Array // per-cell matte coverage, 0..1
+  dotPitch: number
+  centreX: number
+  centreY: number
+  bloomR: number
 }
-type Lamp = { x: number; y: number; r: number; s: number }
-type Box = { l: number; t: number; r: number; b: number }
+/** core: 0 = pure halftone, 1 = the colour photo shows through the lamp's centre. */
+type Lamp = { x: number; y: number; r: number; s: number; core: number }
+/** Colour core: the photo with a feathered matte, plus a reusable per-lamp scratch canvas. */
+type Core = { cutout: HTMLCanvasElement | null; tmp: HTMLCanvasElement }
+type Layout = ReturnType<typeof heroLayout>
+type BloomOpts = { grow?: number; hold?: number; fade?: number; core?: number }
 
 const MARK_PATH = "M12 86 V16 L46 58 L80 16 V86" // same as components/ui/mark.tsx (viewBox 120x100)
 const PAPER = "rgb(239,237,245)"
 
 // Visual knobs (frozen after Phase 5 visual QA).
-const PITCH = 12 // cell size, px (10 below 768)
 const NOISE = 0.055 // value-noise scale per cell
 const A_MIN = 0.07 // daylight dash alpha range
 const A_SPAN = 0.18
@@ -47,6 +74,12 @@ const LEVELS = 40 // lit alpha levels (one stroke each)
 const BLOOM_GROW = 1400
 const BLOOM_HOLD = 700
 const BLOOM_FADE = 1200
+const GHOST = 0.14 // resting portrait reveal in daylight (P2b): a face silhouette that never competes with the name
+// colour-core gradient stops (fraction, alpha), sampled once from the same curve that fades the dots out
+const CORE_STOPS = Array.from({ length: 9 }, (_, i) => {
+  const f = PORTRAIT.coreFlat + ((1 - PORTRAIT.coreFlat) * i) / 8
+  return [f, coreAlpha(f)] as const
+})
 
 function hash2(x: number, y: number, seed: number) {
   let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(seed, 1442695041)) | 0
@@ -78,33 +111,6 @@ function dash(c: CanvasRenderingContext2D, x: number, y: number, a: number, l: n
   c.lineTo(x + dx, y + dy)
 }
 
-/** Text boxes inside the hero copy, relative to the field, so the mark is placed in clear space. */
-function textBoxes(hero: HTMLElement, origin: DOMRect, pad: number): Box[] {
-  const inner = hero.querySelector(".hero-inner")
-  if (!inner) return []
-  const out: Box[] = []
-  // inset (em): a text box spans the font's whole content area (~1.4em in Hubot), well beyond the glyphs
-  const add = (r: DOMRect, fs = 0) => {
-    if (r.width && r.height)
-      out.push({
-        l: r.left - origin.left - pad,
-        t: r.top + fs * 0.3 - origin.top - pad,
-        r: r.right - origin.left + pad,
-        b: r.bottom - fs * 0.25 - origin.top + pad,
-      })
-  }
-  const range = document.createRange()
-  const walker = document.createTreeWalker(inner, NodeFilter.SHOW_TEXT)
-  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-    if (!n.textContent?.trim()) continue
-    range.selectNodeContents(n)
-    const fs = n.parentElement ? parseFloat(getComputedStyle(n.parentElement).fontSize) || 0 : 0
-    for (const r of range.getClientRects()) add(r, fs)
-  }
-  inner.querySelectorAll(".full-stop, .pill, .hero-photo").forEach((el) => add(el.getBoundingClientRect()))
-  return out
-}
-
 /**
  * Largest mark (height s, viewBox units scaled by s/100) whose box sits right-aligned to the content edge,
  * below the nav and clear of the hero copy. Falls back to the smallest size at the top of the band.
@@ -128,31 +134,35 @@ function placeMark(w: number, h: number, mobile: boolean, top: number, right: nu
   return { x: right - 0.48 * s, y: top + 0.51 * s, s }
 }
 
-function buildField(w: number, h: number, mobile: boolean, mark: { x: number; y: number; s: number }): Field | null {
-  const dpr = Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2)
-  const pitch = mobile ? 10 : PITCH
+function buildField(w: number, h: number, mobile: boolean, layout: Layout): Field | null {
+  const { dpr, pitch } = layout
   const cols = Math.ceil(w / pitch)
   const rows = Math.ceil(h / pitch)
   const n = cols * rows
+  const rect = placePortrait({ w, h, mobile, dpr, top: layout.top, right: layout.right, boxes: layout.boxes, pitch })
+  const mark = rect ? null : placeMark(w, h, mobile, layout.top, layout.right, layout.boxes)
 
-  // 1. rasterise the mark into a cell-resolution mask (the hidden "low bits")
-  const mask = document.createElement("canvas")
-  mask.width = cols
-  mask.height = rows
-  const m = mask.getContext("2d", { willReadFrequently: true })
-  if (!m) return null
-  const s = mark.s / 100 / pitch
-  m.translate(mark.x / pitch - 60 * s, mark.y / pitch - 50 * s)
-  m.scale(s, s)
-  m.strokeStyle = "#fff"
-  m.fillStyle = "#fff"
-  m.lineWidth = 12
-  m.lineCap = "square"
-  m.lineJoin = "miter"
-  m.miterLimit = 4 // as in the SVG mark
-  m.stroke(new Path2D(MARK_PATH))
-  m.fillRect(94, 72, 14, 14)
-  const md = m.getImageData(0, 0, cols, rows).data
+  // 1. mark mode only: rasterise the M into a cell-resolution mask (the hidden "low bits")
+  let md: Uint8ClampedArray | null = null
+  if (mark) {
+    const mask = document.createElement("canvas")
+    mask.width = cols
+    mask.height = rows
+    const m = mask.getContext("2d", { willReadFrequently: true })
+    if (!m) return null
+    const s = mark.s / 100 / pitch
+    m.translate(mark.x / pitch - 60 * s, mark.y / pitch - 50 * s)
+    m.scale(s, s)
+    m.strokeStyle = "#fff"
+    m.fillStyle = "#fff"
+    m.lineWidth = 12
+    m.lineCap = "square"
+    m.lineJoin = "miter"
+    m.miterLimit = 4 // as in the SVG mark
+    m.stroke(new Path2D(MARK_PATH))
+    m.fillRect(94, 72, 14, 14)
+    md = m.getImageData(0, 0, cols, rows).data
+  }
 
   // 2. per-cell dash parameters (deterministic). Alpha is quantised to the daylight buckets so a lit cell at
   //    strength 0 is byte-identical to the baked field (no seam at the lamp edge).
@@ -175,7 +185,7 @@ function buildField(w: number, h: number, mobile: boolean, mark: { x: number; y:
       const q = Math.min(BUCKETS - 1, Math.floor(v * v * BUCKETS))
       bucket[k] = q
       alpha[k] = A_MIN + (A_SPAN * (q + 0.5)) / BUCKETS
-      if (md[k * 4 + 3] > 127) {
+      if (md && md[k * 4 + 3] > 127) {
         payload[k] = 1
         idx.push(k)
       }
@@ -198,6 +208,27 @@ function buildField(w: number, h: number, mobile: boolean, mark: { x: number; y:
     b.stroke()
   }
 
+  // 4. portrait mode: fine dots, their per-cell spatial index and the dash coverage
+  const dotPitch = dotPitchFor(pitch)
+  const dots = rect
+    ? portraitDots(rect, dotPitch)
+    : { x: new Float32Array(0), y: new Float32Array(0), tone: new Float32Array(0) }
+  const nd = dots.x.length
+  const cellStart = new Uint32Array(rect ? n + 1 : 1)
+  const dotIdx = new Uint32Array(nd)
+  if (rect) {
+    const home = new Uint32Array(nd)
+    for (let d = 0; d < nd; d++) {
+      const i = Math.min(cols - 1, Math.max(0, Math.floor(dots.x[d] / pitch)))
+      const j = Math.min(rows - 1, Math.max(0, Math.floor(dots.y[d] / pitch)))
+      home[d] = j * cols + i
+      cellStart[home[d] + 1]++
+    }
+    for (let k = 0; k < n; k++) cellStart[k + 1] += cellStart[k]
+    const fill = cellStart.slice(0, n)
+    for (let d = 0; d < nd; d++) dotIdx[fill[home[d]]++] = d
+  }
+
   return {
     w,
     h,
@@ -213,16 +244,31 @@ function buildField(w: number, h: number, mobile: boolean, mark: { x: number; y:
     payload,
     payloadIdx: Uint32Array.from(idx),
     base,
-    markX: mark.x,
-    markY: mark.y,
-    markR: mark.s * 0.78,
+    mode: rect ? "portrait" : "mark",
+    rect,
+    dots,
+    cellStart,
+    dotIdx,
+    cover: rect ? payloadMask(rect, pitch, cols, rows) : new Float32Array(0),
+    dotPitch,
+    centreX: rect ? rect.x + rect.w / 2 : mark!.x,
+    centreY: rect ? rect.y + rect.h / 2 : mark!.y,
+    bloomR: rect ? (Math.hypot(rect.w, rect.h) / 2) * 1.05 : mark!.s * 0.78 * 1.35,
   }
 }
 
 /** Reusable per-frame scratch buffers (sized to the field). */
-type Scratch = { stamp: Uint32Array; cell: Uint32Array; lit: Float32Array; order: Uint32Array; count: Uint32Array }
-const scratchFor = (n: number): Scratch => ({
+type Scratch = {
+  stamp: Uint32Array
+  dstamp: Uint32Array
+  cell: Uint32Array
+  lit: Float32Array
+  order: Uint32Array
+  count: Uint32Array
+}
+const scratchFor = (n: number, nd = 0): Scratch => ({
   stamp: new Uint32Array(n),
+  dstamp: new Uint32Array(nd),
   cell: new Uint32Array(n),
   lit: new Float32Array(n),
   order: new Uint32Array(n),
@@ -246,6 +292,7 @@ function render(
   uv: string,
   sc: Scratch,
   frame: number,
+  core: Core,
 ) {
   ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.globalAlpha = 1
@@ -254,11 +301,16 @@ function render(
   ctx.drawImage(f.base, 0, 0)
   ctx.setTransform(f.dpr, 0, 0, f.dpr, 0, 0)
 
-  // reduced motion: the mark is shown statically, quiet
+  // reduced motion / lamp on: the payload is shown statically, quiet
+  const portrait = f.mode === "portrait"
+  const { dots } = f
   if (reveal > 0) {
     ctx.globalCompositeOperation = "lighter"
     ctx.fillStyle = `rgb(${uv})`
-    for (const k of f.payloadIdx) square(ctx, f, k, reveal)
+    if (portrait)
+      for (let d = 0; d < dots.x.length; d++)
+        drawCell(ctx, dots.x[d], dots.y[d], dots.tone[d], reveal, f.dpr, f.dotPitch)
+    else for (const k of f.payloadIdx) square(ctx, f, k, reveal)
     ctx.globalCompositeOperation = "source-over"
     ctx.globalAlpha = 1
   }
@@ -314,7 +366,9 @@ function render(
         cell[n] = k
         lit[n] = t
         const a = f.alpha[k] + (A_LIT - f.alpha[k]) * t
-        const level = Math.round((f.payload[k] ? a * (1 - t) : a) * (LEVELS / A_LIT))
+        // payload dashes fade out as their dots/squares appear
+        const gone = portrait ? t * Math.min(1, f.cover[k] * 1.5) : f.payload[k] ? t : 0
+        const level = Math.round(a * (1 - gone) * (LEVELS / A_LIT))
         order[n] = Math.min(LEVELS, level)
         count[order[n]]++
         n++
@@ -322,7 +376,7 @@ function render(
     }
   }
 
-  // lit dashes: comb flat and brighten (payload dashes fade out as their squares appear); one stroke per level
+  // lit dashes: comb flat and brighten; one stroke per level
   ctx.lineWidth = 1
   ctx.strokeStyle = PAPER
   for (let level = 1; level <= LEVELS; level++) {
@@ -338,12 +392,83 @@ function render(
     ctx.stroke()
   }
 
-  // payload: UV squares with a soft halo (two squares, additive, no shadowBlur)
   ctx.globalCompositeOperation = "lighter"
   ctx.fillStyle = `rgb(${uv})`
-  for (let q = 0; q < n; q++) {
-    const k = cell[q]
-    if (f.payload[k] && lit[q] > 0.01) square(ctx, f, k, lit[q])
+  if (!portrait) {
+    // payload: UV squares with a soft halo (two squares, additive, no shadowBlur)
+    for (let q = 0; q < n; q++) {
+      const k = cell[q]
+      if (f.payload[k] && lit[q] > 0.01) square(ctx, f, k, lit[q])
+    }
+  } else if (f.rect) {
+    // portrait: halftone dots within lamp reach, via the per-cell index; the lamp core dissolves them into the photo
+    const { dstamp } = sc
+    const { cellStart, dotIdx, rect } = f
+    for (const l of active) {
+      // padded by a dot pitch: a dot just outside the disc can still reach into the clip with its halo
+      const reach = l.r + f.dotPitch
+      const i0 = Math.max(0, Math.floor((l.x - reach) / f.pitch))
+      const i1 = Math.min(f.cols - 1, Math.floor((l.x + reach) / f.pitch))
+      const j0 = Math.max(0, Math.floor((l.y - reach) / f.pitch))
+      const j1 = Math.min(f.rows - 1, Math.floor((l.y + reach) / f.pitch))
+      for (let j = j0; j <= j1; j++) {
+        for (let k = j * f.cols + i0, e = j * f.cols + i1; k <= e; k++) {
+          for (let m = cellStart[k]; m < cellStart[k + 1]; m++) {
+            const d = dotIdx[m]
+            if (dstamp[d] === frame) continue
+            dstamp[d] = frame
+            const dx = dots.x[d]
+            const dy = dots.y[d]
+            let t = 0
+            let cm = 0
+            for (const L of active) {
+              const dist = Math.hypot(dx - L.x, dy - L.y)
+              if (dist >= L.r) continue
+              t = Math.max(t, L.s * (1 - sstep(L.r * 0.5, L.r, dist)))
+              if (L.core > 0) {
+                // the photo's opacity here (same curve as its gradient): the dots take the rest, a true cross-dissolve
+                cm = Math.max(cm, L.core * L.s * coreAlpha(dist / (L.r * PORTRAIT.core)))
+              }
+            }
+            // inside a disc the global reveal was cleared with the field: keep it, so there is no ring at the edge
+            const v = Math.max(t, reveal) * (1 - cm)
+            if (v > 0.01) drawCell(ctx, dx, dy, dots.tone[d], v, f.dpr, f.dotPitch)
+          }
+        }
+      }
+    }
+
+    // colour core: the cutout photo through a radial mask, source-over, after the dots
+    const { cutout, tmp } = core
+    if (cutout) {
+      const tc = tmp.getContext("2d")
+      if (tc) {
+        for (const l of active) {
+          const rc = l.r * PORTRAIT.core
+          if (l.core <= 0 || rc < 2) continue
+          if (l.x + rc < rect.x || l.x - rc > rect.x + rect.w || l.y + rc < rect.y || l.y - rc > rect.y + rect.h)
+            continue
+          const side = Math.ceil(2 * rc * f.dpr)
+          if (tmp.width < side || tmp.height < side) tmp.width = tmp.height = side // grow only (a fresh canvas is 300x150)
+          tc.setTransform(1, 0, 0, 1, 0, 0)
+          tc.globalCompositeOperation = "source-over"
+          tc.clearRect(0, 0, tmp.width, tmp.height)
+          tc.setTransform(f.dpr, 0, 0, f.dpr, -(l.x - rc) * f.dpr, -(l.y - rc) * f.dpr)
+          tc.drawImage(cutout, rect.x, rect.y, rect.w, rect.h)
+          tc.globalCompositeOperation = "destination-in"
+          const g = tc.createRadialGradient(l.x, l.y, 0, l.x, l.y, rc)
+          g.addColorStop(0, "#000")
+          for (const [at, a] of CORE_STOPS) g.addColorStop(at, `rgba(0,0,0,${a})`)
+          tc.fillStyle = g
+          tc.fillRect(l.x - rc, l.y - rc, side / f.dpr, side / f.dpr)
+          tc.globalCompositeOperation = "source-over"
+          ctx.globalCompositeOperation = "source-over"
+          ctx.globalAlpha = l.s * l.core
+          ctx.drawImage(tmp, 0, 0, side, side, l.x - rc, l.y - rc, side / f.dpr, side / f.dpr)
+          ctx.globalAlpha = 1
+        }
+      }
+    }
   }
   ctx.restore()
   ctx.globalCompositeOperation = "source-over"
@@ -381,17 +506,61 @@ export function HeroField() {
     let size = ""
     let dprQuery: MediaQueryList | null = null
     const lens = { x: 0, y: 0, tx: 0, ty: 0, s: 0, target: 0, r: 150 }
-    const bloom = { on: false, t0: 0, x: 0, y: 0, rmax: 0 }
+    const bloom = {
+      on: false,
+      t0: 0,
+      x: 0,
+      y: 0,
+      rmax: 0,
+      grow: BLOOM_GROW,
+      hold: BLOOM_HOLD,
+      fade: BLOOM_FADE,
+      core: 0,
+    }
     let bloomLamp: Lamp | null = null
+    const core: Core = { cutout: null, tmp: document.createElement("canvas") }
+    let img: HTMLImageElement | null = null
+    let imgReady = false
+    let matte: HTMLCanvasElement | null = null
+    // dev only (tree-shaken from production): keep the portrait rect and the cutout outlined at 35%
+    const debug = process.env.NODE_ENV !== "production" && location.search.includes("debug=portrait")
+
+    // draw() skips a frame identical to the last one (the hand-off's hold is ~700ms of the same image): `ver` moves
+    // whenever the field or the cutout is rebuilt, the rest of the key is every input a frame depends on
+    let ver = 0
+    let lastKey = ""
+
+    // Bakes the colour cutout once the photo is decoded and a portrait rect exists (also after every rebuild).
+    const bake = () => {
+      ver++
+      core.cutout = null
+      if (!imgReady || !img || !field?.rect) return
+      matte ??= matteCanvas()
+      if (matte) core.cutout = bakeCutout(img, field.rect, field.dpr, matte)
+    }
 
     const draw = () => {
       if (!field) return
+      const bl = bloomLamp
+      const key = `${ver}|${lens.s}|${lens.x}|${lens.y}|${bl ? `${bl.x},${bl.y},${bl.r},${bl.s},${bl.core}` : ""}|${lampOn()}|${reduce.matches}`
+      if (key === lastKey) return
+      lastKey = key
       frame = (frame + 1) >>> 0 || 1
       const lamps: Lamp[] = []
-      if (lens.s > 0.002) lamps.push({ x: lens.x, y: lens.y, r: lens.r, s: lens.s })
+      if (lens.s > 0.002) lamps.push({ x: lens.x, y: lens.y, r: lens.r, s: lens.s, core: 1 })
       if (bloomLamp) lamps.push(bloomLamp)
-      const reveal = reduce.matches ? (lampOn() ? 0.6 : 0.45) : lampOn() ? 0.6 : 0
-      render(ctx, field, lamps, reveal, uv, sc, frame)
+      const portrait = field.mode === "portrait"
+      const reveal = lampOn() ? 0.6 : reduce.matches ? (portrait ? 0.3 : 0.45) : portrait ? GHOST : 0
+      render(ctx, field, lamps, reveal, uv, sc, frame, core)
+      if (debug && field.rect) {
+        const { rect } = field
+        ctx.setTransform(field.dpr, 0, 0, field.dpr, 0, 0)
+        ctx.globalAlpha = 0.35
+        if (core.cutout) ctx.drawImage(core.cutout, rect.x, rect.y, rect.w, rect.h)
+        ctx.strokeStyle = "#f0f"
+        ctx.strokeRect(rect.x, rect.y, rect.w, rect.h)
+        ctx.globalAlpha = 1
+      }
     }
 
     const tick = (now: number) => {
@@ -406,11 +575,11 @@ export function HeroField() {
       bloomLamp = null
       if (bloom.on) {
         const e = now - bloom.t0
-        const { x, y, rmax } = bloom
-        if (e < BLOOM_GROW) bloomLamp = { x, y, r: rmax * easeOut(e / BLOOM_GROW), s: 1 }
-        else if (e < BLOOM_GROW + BLOOM_HOLD) bloomLamp = { x, y, r: rmax, s: 1 }
-        else if (e < BLOOM_GROW + BLOOM_HOLD + BLOOM_FADE)
-          bloomLamp = { x, y, r: rmax, s: 1 - easeInOut((e - BLOOM_GROW - BLOOM_HOLD) / BLOOM_FADE) }
+        const { x, y, rmax, grow, hold, fade, core: c } = bloom
+        if (e < grow) bloomLamp = { x, y, r: rmax * easeOut(e / grow), s: 1, core: c }
+        else if (e < grow + hold) bloomLamp = { x, y, r: rmax, s: 1, core: c }
+        else if (e < grow + hold + fade)
+          bloomLamp = { x, y, r: rmax, s: 1 - easeInOut((e - grow - hold) / fade), core: c }
         else bloom.on = false
       }
       draw()
@@ -427,34 +596,34 @@ export function HeroField() {
       raf = 0
       last = 0
     }
-    const startBloom = (x: number, y: number, rmax: number) => {
+    const startBloom = (x: number, y: number, rmax: number, o: BloomOpts = {}) => {
+      bloom.grow = o.grow ?? BLOOM_GROW
+      bloom.hold = o.hold ?? BLOOM_HOLD
+      bloom.fade = o.fade ?? BLOOM_FADE
+      bloom.core = o.core ?? 0
       bloom.on = true
       bloom.t0 = performance.now()
       bloom.x = x
       bloom.y = y
       bloom.rmax = rmax
+      window.dispatchEvent(new Event("mm:field-bloom"))
       kick()
     }
 
     const rebuild = () => {
-      const r = wrap.getBoundingClientRect()
-      const w = Math.max(1, Math.round(r.width))
-      const h = Math.max(1, Math.round(r.height))
-      const mobile = window.innerWidth < 768
-      const key = `${w}x${h}@${window.devicePixelRatio}`
+      const dims = heroSize(wrap)
+      const key = `${dims.w}x${dims.h}@${window.devicePixelRatio}`
       if (key === size && field) return // ResizeObserver's initial callback, or a no-op resize
       size = key
-      const inner = hero.querySelector(".hero-inner")
-      const innerRect = inner?.getBoundingClientRect()
-      const padR = inner ? parseFloat(getComputedStyle(inner).paddingRight) || 0 : 0
-      const right = innerRect ? innerRect.right - padR - r.left : w * 0.94
-      const navH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--nav-h")) || 64
-      const mark = placeMark(w, h, mobile, navH + (mobile ? 20 : 36), right, textBoxes(hero, r, mobile ? 16 : 28))
-      field = buildField(w, h, mobile, mark)
+      const layout = heroLayout(hero, wrap, dims)
+      field = buildField(layout.w, layout.h, layout.mobile, layout)
+      ver++
+      wrap.dataset.mode = field?.mode ?? "none"
       if (!field) return
+      bake()
       canvas.width = field.base.width
       canvas.height = field.base.height
-      sc = scratchFor(field.cols * field.rows)
+      sc = scratchFor(field.cols * field.rows, field.dots.x.length)
       frame = 0
       lens.r = window.innerWidth < 1280 ? 120 : 150
       draw()
@@ -494,7 +663,7 @@ export function HeroField() {
       if (e.pointerType !== "touch" || reduce.matches) return
       if ((e.target as Element | null)?.closest("a,button")) return
       const p = local(e)
-      if (p.inside) startBloom(p.x, p.y, 140)
+      if (p.inside) startBloom(p.x, p.y, field?.rect ? Math.max(140, 0.45 * field.rect.h) : 140, { core: 1 })
     }
     const onVisibility = () => (document.hidden ? halt() : kick())
     const onReduce = () => {
@@ -530,44 +699,74 @@ export function HeroField() {
       reduce.addEventListener("change", onReduce)
       window.addEventListener("mm:lamp", draw)
       if (!reduce.matches) {
-        const f = field
         let bloomed = false
-        const go = () => {
-          if (bloomed || disposed) return
+        // The hand-off: a portrait-wide bloom with the colour core, so the page under the clearing overlay already shows
+        // her photo, which then fades to the halftone and the resting ghost. Reads the field at fire time (a resize
+        // during the intro rebuilds it).
+        const go = (o: BloomOpts) => () => {
+          if (bloomed || disposed || !field) return
           bloomed = true
-          startBloom(f.markX, f.markY, f.markR * 1.35)
+          startBloom(field.centreX, field.centreY, field.bloomR, o)
         }
         const intro = (window as Window & { __mmIntro?: { mode: "full" | "short"; t0: number } }).__mmIntro
         const state = document.documentElement.dataset.intro
         if (intro && (state === "full" || state === "short")) {
-          // Bloom exactly when the torch front passes the mark; at once if the visitor skips.
-          const left = wrap.getBoundingClientRect().left
-          const at = intro.t0 + frontAt((left + f.markX) / window.innerWidth, intro.mode)
-          bloomTimer = window.setTimeout(go, Math.max(0, at - performance.now()))
-          onIntroEnd = go
-          window.addEventListener("mm:intro-end", go, { once: true })
+          const handOff = go({ grow: 0, hold: INTRO[intro.mode].collapseDur + 100, fade: 1000, core: 1 })
+          const at = introClock(intro.t0) + INTRO[intro.mode].collapse // the CSS clock: blooms as the ink clears
+          bloomTimer = window.setTimeout(handOff, Math.max(0, at - performance.now()))
+          onIntroEnd = handOff // a skip blooms at once
+          window.addEventListener("mm:intro-end", handOff, { once: true })
         } else {
           // after the 600ms canvas fade-in has mostly landed
-          bloomTimer = window.setTimeout(go, 650)
+          bloomTimer = window.setTimeout(go({ core: 0 }), 650)
         }
       }
+    }
+
+    // The colour photo loads at mount (not at init); no core if it cannot decode (the halftone alone still works).
+    {
+      const im = new Image()
+      im.decoding = "async"
+      const ready = () => {
+        if (disposed || imgReady) return
+        imgReady = true
+        img = im
+        bake()
+        draw()
+      }
+      im.onload = ready
+      im.src = photos.portrait.img.src
+      im.decode?.().then(ready, () => {})
     }
 
     // After first paint, fonts (the mark avoids the h1, whose width depends on Hubot) and an idle slot.
     let idleId = 0
     let timeoutId = 0
     const schedule = () => {
-      if (disposed) return
+      if (disposed || started || idleId || timeoutId) return // once: fonts.ready or the stall fallback below
+      const intro = document.documentElement.dataset.intro
+      if (intro === "full" || intro === "short") {
+        // the intro is running: be ready under the overlay (the hand-off blooms at `collapse`), but in an idle slot of its
+        // own, never inside the font callbacks next to hydration and the overlay's own prep
+        const wait = Math.max(120, INTRO[intro].collapse - 700)
+        if (typeof window.requestIdleCallback === "function")
+          idleId = window.requestIdleCallback(init, { timeout: wait })
+        else timeoutId = window.setTimeout(init, 60)
+        return
+      }
       if (typeof window.requestIdleCallback === "function") idleId = window.requestIdleCallback(init, { timeout: 800 })
       else timeoutId = window.setTimeout(init, 200)
     }
     if (document.fonts?.ready) document.fonts.ready.then(schedule, schedule)
     else schedule()
+    // fonts.ready can stall (a font request that never settles): init anyway; init itself runs once
+    const fontsTimer = window.setTimeout(schedule, 3000)
 
     return () => {
       disposed = true
       if (idleId) window.cancelIdleCallback(idleId)
       window.clearTimeout(timeoutId)
+      window.clearTimeout(fontsTimer)
       window.clearTimeout(resizeTimer)
       window.clearTimeout(bloomTimer)
       halt()

@@ -203,28 +203,6 @@ export function ChapterSection({ chapter: c }: { chapter: Chapter }) {
             <EntryRow key={e.key} e={e} />
           ))}
         </ol>
-        {/* Invisible ink: facts-only stamps derived from wins/projects (no certificates). */}
-        {(() => {
-          const stamps = c.entries.flatMap((e) => {
-            if (e.kind === "hackathon") {
-              const parts = [e.item.placement]
-              if (e.note?.when) parts.push(e.note.when)
-              if (e.note?.team) parts.push(e.note.team.replace("Team ", ""))
-              return [
-                { key: e.key, issued: e.note?.when ?? e.start.slice(0, 4), name: e.item.project, issuer: e.item.name },
-              ]
-            }
-            if (e.kind === "role" && e.item.company === "Axon Security") {
-              return [{ key: e.key, issued: e.item.period.split(" – ")[0], name: e.item.role, issuer: e.item.company }]
-            }
-            if (e.kind === "role" && e.item.company === "Capgemini Engineering") {
-              return [{ key: e.key, issued: e.item.period.split(" – ")[0], name: e.item.role, issuer: e.item.company }]
-            }
-            return []
-          })
-          if (!stamps.length) return null
-          return null
-        })()}
       </div>
     </section>
   )

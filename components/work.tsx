@@ -21,7 +21,7 @@ export function Work() {
           label="workbench"
           title="Built end to end"
           count={projects.length}
-          lede="Six projects, from a model-file X-ray to a voice-first agronomist. Three of them came out of the hackathons in chapter 4."
+          lede="Five projects, from a model-file X-ray to a voice-first agronomist. Three of them came out of the hackathons in chapter 4."
         />
         <div>
           {projects.map((p) => (
@@ -46,6 +46,7 @@ export function Work() {
                     {p.badge}
                   </p>
                 )}
+                {p.paper && <p className="t-voice mt-2 text-faint">&ldquo;{p.paper}&rdquo;</p>}
               </div>
               <p className="t-body max-w-[60ch] md:col-span-4 lg:col-span-5">{p.description}</p>
               <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-2">

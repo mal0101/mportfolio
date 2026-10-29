@@ -6,24 +6,11 @@ import { getImageProps, type StaticImageData } from "next/image"
  * components/page-observers.tsx). Server component: getImageProps() adds no client JS. Only the colour layer carries
  * alt text and the blur placeholder.
  */
-export function Photo({
-  img,
-  alt,
-  sizes,
-  eager = false,
-  className,
-}: {
-  img: StaticImageData
-  alt: string
-  sizes: string
-  eager?: boolean
-  className?: string
-}) {
-  const loading = eager ? "eager" : "lazy"
-  const { props: colour } = getImageProps({ src: img, alt, sizes, loading, placeholder: "blur" })
-  const { props: day } = getImageProps({ src: img, alt: "", sizes, loading })
+export function Photo({ img, alt, sizes }: { img: StaticImageData; alt: string; sizes: string }) {
+  const { props: colour } = getImageProps({ src: img, alt, sizes, loading: "lazy", placeholder: "blur" })
+  const { props: day } = getImageProps({ src: img, alt: "", sizes, loading: "lazy" })
   return (
-    <span className={className ? `photo ${className}` : "photo"}>
+    <span className="photo">
       {/* eslint-disable-next-line @next/next/no-img-element -- props come from next/image getImageProps */}
       <img {...colour} alt={alt} className="photo-colour" />
       {/* eslint-disable-next-line @next/next/no-img-element -- decorative grayscale copy, same URL */}

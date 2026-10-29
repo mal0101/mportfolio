@@ -17,6 +17,10 @@ export default [
     },
   },
   {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: { Buffer: "readonly", console: "readonly", process: "readonly" } },
+  },
+  {
     ignores: [".next/**", "node_modules/**"],
   },
 ]

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { existsSync, readdirSync, readFileSync, statSync } from "fs"
 import path from "path"
 
-// Guards against the old site creeping back in (MASTER-PLAN §10.4).
+// Guards against the old site creeping back in (DESIGN §9).
 const root = path.resolve(__dirname, "..")
 const at = (...p: string[]) => path.join(root, ...p)
 const REMOVED = ["three", "@react-three/fiber", "@types/three", "framer-motion", "lucide-react", "tw-animate-css"]
@@ -61,7 +61,7 @@ describe("guards", () => {
 
   it("ships photos without EXIF from assets/photos only", () => {
     const jpgs = files(at("assets", "photos")).filter((f) => f.endsWith(".jpg"))
-    expect(jpgs).toHaveLength(4)
+    expect(jpgs).toHaveLength(3)
     for (const f of jpgs) {
       const buf = readFileSync(f)
       expect(buf.includes(Buffer.from("Exif\0\0")), path.basename(f)).toBe(false)
@@ -69,5 +69,13 @@ describe("guards", () => {
     expect(
       files(at("public")).filter((f) => /\.(jpe?g|png|webp|avif)$/i.test(f) && !f.includes("partners/")),
     ).toHaveLength(0)
+  })
+
+  it("defines every motion token it uses on :root (a var() out of scope silently drops the whole animation)", () => {
+    const css = readFileSync(at("app", "globals.css"), "utf8")
+    const rootBlock = /:root\s*\{([^}]*)\}/.exec(css)?.[1] ?? ""
+    const used = new Set([...css.matchAll(/var\((--(?:ease|dur)-[\w-]+)\)/g)].map((m) => m[1]))
+    expect(used.size).toBeGreaterThan(0)
+    for (const name of used) expect(rootBlock, name).toContain(`${name}:`)
   })
 })

@@ -15,6 +15,7 @@ export interface Project {
   tags: string[]
   description: string
   badge?: string
+  paper?: string
   link?: string
 }
 
@@ -51,21 +52,26 @@ export interface Leadership {
   description?: string
 }
 
-export interface Program {
-  name: string
-  url: string
-}
-
 export interface Venture {
   name: string
   legalName: string
   url: string
   role: string
+  cofounder: string
   period: string
   tagline: string
   summary: string
   principles: { title: string; text: string }[]
-  logos?: { name: string; src: string; alt: string; height?: number }[]
+  logos?: {
+    name: string
+    src: string
+    alt: string
+    href: string
+    group: "backed" | "member"
+    width: number // intrinsic px
+    height: number // intrinsic px
+    display: number // CSS height in px
+  }[]
   source: string
   retrieved: string
 }
@@ -82,6 +88,7 @@ export const venture: Venture = {
   legalName: "Axon Security, Inc.", // [AX]
   url: "https://axonsecurity.tech",
   role: "Co-founder & co-CEO", // [U] confirmed by Malak 2026-10-22 (LinkedIn title: "Co-Founder")
+  cofounder: "Hany El Atlassi", // [U]
   period: "Aug 2026 – Present", // [LI] "Aug 2026 - Present"
   tagline: "Agent security for the AI stack you already run.",
   summary:
@@ -97,12 +104,53 @@ export const venture: Venture = {
       text: "Signed detection content comes in, verified offline. Nothing travels the other way.",
     },
   ],
+  // Partner strip: labels, alts and links verbatim from https://axonsecurity.tech (retrieved 2026-10-29).
+  // Artwork: E2B https://e2b.dev/brand, Hack-Nation https://hack-nation.ai/branding, Anthropic press kit (ivory wordmark);
+  // AWS has no official SVG, so the PNG stays.
+  // CONFIRM(malak): partner logos on personal site
   logos: [
-    { name: "HackNation", src: "/partners/hacknation.png", alt: "HackNation Venture Lab", height: 20 },
-    { name: "AWS", src: "/partners/aws-startups.png", alt: "AWS for Startups", height: 20 },
-    { name: "E2B", src: "/partners/e2b.png", alt: "E2B for Startups", height: 20 },
-    { name: "Anthropic", src: "/partners/anthropic.svg", alt: "Anthropic Cyber Verification Program", height: 16 },
+    {
+      name: "HackNation",
+      src: "/partners/hacknation.svg",
+      alt: "HackNation Venture Lab",
+      href: "https://ventures.hack-nation.ai/",
+      group: "backed",
+      width: 481,
+      height: 139,
+      display: 32,
+    },
+    {
+      name: "AWS",
+      src: "/partners/aws-startups.png",
+      alt: "AWS for Startups",
+      href: "https://aws.amazon.com/startups/",
+      group: "backed",
+      width: 806,
+      height: 218,
+      display: 28,
+    },
+    {
+      name: "E2B",
+      src: "/partners/e2b.svg",
+      alt: "E2B for Startups",
+      href: "https://e2b.dev/startups/",
+      group: "backed",
+      width: 134,
+      height: 60,
+      display: 36, // viewBox has ~50% vertical padding; the glyph renders ~18px
+    },
+    {
+      name: "Anthropic",
+      src: "/partners/anthropic.svg",
+      alt: "Anthropic Cyber Verification Program",
+      href: "https://support.claude.com/en/articles/14604842-real-time-cyber-safeguards-on-claude-opus-and-sonnet",
+      group: "member",
+      width: 590,
+      height: 68,
+      display: 14,
+    },
   ],
+
   source: "https://axonsecurity.tech",
   retrieved: "2026-10-22",
 }
@@ -116,8 +164,11 @@ export const experiences: Experience[] = [
     location: "Casablanca", // [V]
     start: "2026-07",
     type: "internship",
-    // CONFIRM(malak): past-tense version of the old single highlight (the internship has ended)
-    highlights: ["Contributed to AI product system and PLM initiatives at Capgemini Engineering"],
+    // [U] 2026-10-29, Malak's own wording
+    highlights: [
+      "Built a Li-ion EV battery SOH estimation pipeline benchmarking 3 classical ML models against 3 DL architectures (LSTM, CNN, Transformer) across 4 cell chemistries",
+      "Engineered ICA/DVA physics-informed feature extraction over 2,000+ charge-discharge cycles; targeting ONNX export for BMS deployment",
+    ],
   },
   {
     role: "Software Engineering Intern",
@@ -161,7 +212,10 @@ export const projects: Project[] = [
     tags: ["Python", "UMAP", "HDBSCAN", "PyTorch"],
     description:
       "5-layer defensive ML security pipeline detecting adversarial threats in serialised model files (.pth, .safetensors, .h5) — covering LSB steganographic payload injection, Pickle RCE exploits, and backdoor attacks.",
-    badge: "Research paper in preparation",
+    // [U] 2026-10-29; venue verified on iet-smartcities-symposium.com: "The 10th IET International Smart Cities Symposium", 1–3 Dec 2026, University of Bahrain. CONFIRM(malak): SXR ↔ paper link inferred from topic
+    badge: "Paper accepted — 10th IET Smart Cities Symposium",
+    paper:
+      "Spectral Weight Topology Analysis for Execution-Free Integrity Verification of Serialized Machine Learning Models",
   },
   {
     title: "HRL Trading System",
@@ -192,13 +246,6 @@ export const projects: Project[] = [
       "AI clinical safety assistant built on Mistral OCR and a real-time voice pipeline for healthcare professionals.",
     badge: "Top 10 globally — Mistral AI Worldwide Hackathon",
     link: "https://github.com/mar1shell/MediCore",
-  },
-  {
-    title: "PlagAi",
-    tags: ["Python", "NLTK", "scikit-learn"],
-    description:
-      "Plagiarism detection system using Jaccard similarity, TF-IDF cosine similarity, and n-gram analysis. Supports batch processing and configurable thresholds.",
-    link: "https://github.com/mal0101/PlagAi",
   },
 ]
 
@@ -240,7 +287,7 @@ export const education: Education[] = [
     start: "2024-09",
     details: [
       "Coursework: Machine Learning, Deep Learning, Reinforcement Learning, NLP, Advanced Algorithms, Databases",
-      'Research paper in preparation: "Defensive ML Security: Adversarial Threat Detection and Backdoor Neutralisation in Serialised Model Files"',
+      'Paper accepted at the 10th IET International Smart Cities Symposium (Dec 2026): "Spectral Weight Topology Analysis for Execution-Free Integrity Verification of Serialized Machine Learning Models"',
     ],
   },
   {

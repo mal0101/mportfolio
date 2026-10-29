@@ -41,8 +41,9 @@ export function Hero() {
           </div>
         </div>
         <p className="t-voice mt-8 max-w-[60ch] text-faint">
-          <span className="cap-fine">Move your cursor across the field.</span>
-          <span className="cap-touch">Tap the field.</span>
+          {/* CONFIRM(malak): hint copy */}
+          <span className="cap-fine">Shine the lamp on the portrait.</span>
+          <span className="cap-touch">Tap the portrait.</span>
         </p>
       </div>
     </section>

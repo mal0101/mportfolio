@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest"
+import { existsSync, readFileSync } from "node:fs"
+import { join } from "node:path"
 import {
   about,
   projects,
@@ -95,6 +97,24 @@ describe("venture (Axon Security)", () => {
   it("lists the partner logos from axonsecurity.tech", () => {
     expect(venture.logos?.map((l) => l.name)).toEqual(["HackNation", "AWS", "E2B", "Anthropic"])
   })
+
+  it("ships every logo file, https links and the 3 + 1 group split", () => {
+    const logos = venture.logos ?? []
+    for (const l of logos) {
+      expect(existsSync(join(process.cwd(), "public", l.src))).toBe(true)
+      expect(l.href.startsWith("https://")).toBe(true)
+    }
+    expect(logos.filter((l) => l.group === "backed")).toHaveLength(3)
+    expect(logos.filter((l) => l.group === "member")).toHaveLength(1)
+  })
+
+  it("keeps the SVG logos sanitised and white", () => {
+    for (const l of (venture.logos ?? []).filter((x) => x.src.endsWith(".svg"))) {
+      const svg = readFileSync(join(process.cwd(), "public", l.src), "utf8")
+      expect(svg).not.toMatch(/<script|<metadata|<style|currentColor|\bon\w+=|xlink:href/i)
+      expect(svg).toContain('fill="#fff"')
+    }
+  })
 })
 
 export {}
@@ -126,7 +146,7 @@ describe("content guards", () => {
   it("keeps every entry (guards against accidental content loss)", () => {
     expect(leadership).toHaveLength(7)
     expect(hackathons).toHaveLength(3)
-    expect(projects).toHaveLength(6)
+    expect(projects).toHaveLength(5)
     expect(experiences).toHaveLength(4)
     expect(education).toHaveLength(2)
   })
@@ -135,6 +155,19 @@ describe("content guards", () => {
     const cap = experiences.find((e) => e.company === "Capgemini Engineering")
     expect(cap?.period).toBe("Jul – Aug 2026")
     expect(cap?.highlights.some((h) => /currently/i.test(h))).toBe(false)
+  })
+
+  it("carries the accepted paper and Malak's Capgemini wording", () => {
+    const title =
+      "Spectral Weight Topology Analysis for Execution-Free Integrity Verification of Serialized Machine Learning Models"
+    const sxr = projects.find((p) => p.title.startsWith("SXR"))
+    expect(sxr?.badge).toBe("Paper accepted — 10th IET Smart Cities Symposium")
+    expect(sxr?.paper).toBe(title)
+    expect(education[0].details.some((d) => d.includes(`"${title}"`) && /\(Dec 2026\)/.test(d))).toBe(true)
+    const cap = experiences.find((e) => e.company === "Capgemini Engineering")
+    expect(cap?.highlights).toHaveLength(2)
+    expect(projects.some((p) => p.title === "PlagAi")).toBe(false)
+    expect(projects).toHaveLength(5)
   })
 
   it("dates Axon from LinkedIn", () => {
