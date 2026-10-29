@@ -492,6 +492,8 @@ export function HeroField() {
     const uv = uvVar ? uvVar.split(/\s+/).join(",") : "148,105,255"
     const lampOn = () => document.documentElement.dataset.lamp === "on"
     let onIntroEnd: (() => void) | null = null
+    let onIntroGo: (() => void) | null = null
+    let onHandOff: (() => void) | null = null
 
     let field: Field | null = null
     let sc = scratchFor(0)
@@ -708,14 +710,31 @@ export function HeroField() {
           bloomed = true
           startBloom(field.centreX, field.centreY, field.bloomR, o)
         }
-        const intro = (window as Window & { __mmIntro?: { mode: "full" | "short"; t0: number } }).__mmIntro
+        const intro = (window as Window & { __mmIntro?: { mode: "full" | "short"; tGo?: number; aborted?: number } })
+          .__mmIntro
         const state = document.documentElement.dataset.intro
         if (intro && (state === "full" || state === "short")) {
-          const handOff = go({ grow: 0, hold: INTRO[intro.mode].collapseDur + 100, fade: 1000, core: 1 })
-          const at = introClock(intro.t0) + INTRO[intro.mode].collapse // the CSS clock: blooms as the ink clears
-          bloomTimer = window.setTimeout(handOff, Math.max(0, at - performance.now()))
-          onIntroEnd = handOff // a skip blooms at once
-          window.addEventListener("mm:intro-end", handOff, { once: true })
+          // The sequence's clock starts at go (IntroStage: fonts, portrait and layout ready), possibly after this init:
+          // arm the hand-off then, on the CSS clock (the mode may have switched full -> short at go).
+          const arm = () => {
+            window.removeEventListener("mm:intro-go", arm)
+            if (bloomed || disposed) return
+            const m = document.documentElement.dataset.intro
+            if (m !== "full" && m !== "short") return
+            const handOff = go({ grow: 0, hold: INTRO[m].collapseDur + 100, fade: 1000, core: 1 })
+            const at = introClock(intro.tGo ?? performance.now()) + INTRO[m].collapse // blooms as the ink clears
+            bloomTimer = window.setTimeout(handOff, Math.max(0, at - performance.now()))
+            onHandOff = handOff // a skip blooms at once
+          }
+          // an abort (no go by the budget) blooms like a visit without an intro: the plain halftone, the ink fading out above
+          const plain = go({ core: 0 })
+          onIntroEnd = () => (intro.aborted ? plain : (onHandOff ?? plain))()
+          window.addEventListener("mm:intro-end", onIntroEnd, { once: true })
+          if (document.documentElement.hasAttribute("data-intro-go")) arm()
+          else {
+            onIntroGo = arm
+            window.addEventListener("mm:intro-go", arm)
+          }
         } else {
           // after the 600ms canvas fade-in has mostly landed
           bloomTimer = window.setTimeout(go({ core: 0 }), 650)
@@ -748,6 +767,8 @@ export function HeroField() {
       if (intro === "full" || intro === "short") {
         // the intro is running: be ready under the overlay (the hand-off blooms at `collapse`), but in an idle slot of its
         // own, never inside the font callbacks next to hydration and the overlay's own prep
+        // (the idle timeout is a cap from now; before go IntroStage is busy with its own prep, and init arms the hand-off
+        // to the go signal itself, so it can never miss it)
         const wait = Math.max(120, INTRO[intro].collapse - 700)
         if (typeof window.requestIdleCallback === "function")
           idleId = window.requestIdleCallback(init, { timeout: wait })
@@ -780,6 +801,7 @@ export function HeroField() {
       reduce.removeEventListener("change", onReduce)
       window.removeEventListener("mm:lamp", draw)
       if (onIntroEnd) window.removeEventListener("mm:intro-end", onIntroEnd)
+      if (onIntroGo) window.removeEventListener("mm:intro-go", onIntroGo)
     }
   }, [])
 

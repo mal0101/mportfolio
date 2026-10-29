@@ -1,3 +1,4 @@
+import { INTRO } from "@/lib/intro"
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 import { act, render } from "@testing-library/react"
 import { HeroField } from "@/components/hero-field"
@@ -197,6 +198,78 @@ describe("HeroField", () => {
         act(() => {
           vi.advanceTimersByTime(100)
         })
+        expect(() => unmount()).not.toThrow()
+      } finally {
+        window.removeEventListener("mm:field-bloom", seen)
+        delete document.documentElement.dataset.intro
+        delete (window as Window & { __mmIntro?: unknown }).__mmIntro
+      }
+    })
+
+    it("arms the hand-off at go: a late go blooms on the CSS clock after it, never before", () => {
+      roomy()
+      vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => setTimeout(() => cb(performance.now()), 16))
+      vi.stubGlobal("cancelAnimationFrame", (id: number) => clearTimeout(id))
+      document.documentElement.dataset.intro = "short"
+      const boot = { mode: "short", t0: performance.now(), tGo: 0 }
+      ;(window as Window & { __mmIntro?: unknown }).__mmIntro = boot
+      const seen = vi.fn()
+      window.addEventListener("mm:field-bloom", seen)
+      try {
+        const { unmount } = mount()
+        act(() => {
+          vi.advanceTimersByTime(1500) // init ran long ago; no go yet: no bloom, whatever the clock says
+        })
+        expect(seen).not.toHaveBeenCalled()
+        boot.tGo = performance.now()
+        act(() => {
+          document.documentElement.setAttribute("data-intro-go", "")
+          window.dispatchEvent(new Event("mm:intro-go"))
+          vi.advanceTimersByTime(INTRO.short.collapse - 50)
+        })
+        expect(seen).not.toHaveBeenCalled()
+        act(() => {
+          vi.advanceTimersByTime(100)
+        })
+        expect(seen).toHaveBeenCalledTimes(1)
+        expect(() => unmount()).not.toThrow()
+      } finally {
+        window.removeEventListener("mm:field-bloom", seen)
+        document.documentElement.removeAttribute("data-intro-go")
+        delete document.documentElement.dataset.intro
+        delete (window as Window & { __mmIntro?: unknown }).__mmIntro
+      }
+    })
+
+    it("settles after an abort: the plain bloom fires at once and the late go does not re-bloom", () => {
+      roomy()
+      vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => setTimeout(() => cb(performance.now()), 16))
+      vi.stubGlobal("cancelAnimationFrame", (id: number) => clearTimeout(id))
+      document.documentElement.dataset.intro = "full"
+      ;(window as Window & { __mmIntro?: unknown }).__mmIntro = {
+        mode: "full",
+        t0: performance.now(),
+        tGo: 0,
+        aborted: 0,
+      }
+      const seen = vi.fn()
+      window.addEventListener("mm:field-bloom", seen)
+      try {
+        const { unmount } = mount()
+        act(() => {
+          vi.advanceTimersByTime(300)
+        })
+        ;(window as Window & { __mmIntro?: { aborted: number } }).__mmIntro!.aborted = 1
+        act(() => {
+          document.documentElement.dataset.intro = "abort"
+          window.dispatchEvent(new Event("mm:intro-end"))
+        })
+        expect(seen).toHaveBeenCalledTimes(1)
+        act(() => {
+          window.dispatchEvent(new Event("mm:intro-go"))
+          vi.advanceTimersByTime(3000)
+        })
+        expect(seen).toHaveBeenCalledTimes(1)
         expect(() => unmount()).not.toThrow()
       } finally {
         window.removeEventListener("mm:field-bloom", seen)

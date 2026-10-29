@@ -97,7 +97,7 @@ export async function renderOg(size: { width: number; height: number }) {
         fontFamily: "Hubot",
       }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- rendered by next/og (Satori), which needs a plain <img> */}
       <img
         src={fieldSvg(fieldW, size.height)}
         width={fieldW}

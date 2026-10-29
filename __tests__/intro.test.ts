@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   BOOT,
+  READY,
   easeAt,
   easeFlight,
   INTRO,
@@ -13,6 +14,16 @@ import {
 } from "@/lib/intro"
 
 const run = () => new Function(BOOT)()
+type Boot = {
+  mode: string
+  t0: number
+  tGo: number
+  aborted: number
+  end: () => void
+  go: (m?: string) => string
+  plan: () => string
+}
+const boot = () => (window as Window & { __mmIntro?: Boot }).__mmIntro!
 const html = document.documentElement
 const setUrl = (u: string) => window.history.replaceState(null, "", u)
 
@@ -21,10 +32,13 @@ afterEach(() => {
   window.dispatchEvent(new KeyboardEvent("keydown"))
   setUrl("/")
   vi.useRealTimers()
+  delete html.dataset.intro
+  delete html.dataset.introGo
 })
 
 describe("boot script", () => {
   it("plays the full intro on the first view and the short one after", () => {
+    sessionStorage.clear()
     run()
     expect(html.dataset.intro).toBe("full")
     delete html.dataset.intro
@@ -79,15 +93,17 @@ describe("boot script", () => {
     window.removeEventListener("mm:intro-end", seen)
   })
 
-  it("times out at INTRO's full and short timeouts", () => {
+  it("times out at INTRO's full and short timeouts, counted from go", () => {
     vi.useFakeTimers()
     run()
+    boot().go()
     vi.advanceTimersByTime(INTRO.full.timeout - 1)
     expect(html.dataset.intro).toBe("full")
     vi.advanceTimersByTime(2)
     expect(html.dataset.intro).toBe("done")
     delete html.dataset.intro
     run() // second view in the session
+    boot().go()
     vi.advanceTimersByTime(INTRO.short.timeout - 1)
     expect(html.dataset.intro).toBe("short")
     vi.advanceTimersByTime(2)
@@ -126,6 +142,192 @@ describe("boot script", () => {
     localStorage.setItem("mm-lamp", "on")
     run()
     expect(html.dataset.lamp).toBe("on")
+  })
+})
+
+describe("ready gate (go / budget / abort)", () => {
+  const events = () => {
+    const seen = { go: vi.fn(), end: vi.fn() }
+    window.addEventListener("mm:intro-go", seen.go)
+    window.addEventListener("mm:intro-end", seen.end)
+    return {
+      ...seen,
+      off: () => (
+        window.removeEventListener("mm:intro-go", seen.go),
+        window.removeEventListener("mm:intro-end", seen.end)
+      ),
+    }
+  }
+
+  it("shows plain ink with no go signal and nothing started", () => {
+    vi.useFakeTimers()
+    run()
+    expect(html.dataset.intro).toBe("full")
+    expect(html.hasAttribute("data-intro-go")).toBe(false)
+    expect(boot().tGo).toBe(0)
+    vi.advanceTimersByTime(READY.abortAt - 1)
+    expect(html.dataset.intro).toBe("full") // still waiting inside the budget
+  })
+
+  it("go() starts the clock: sets data-intro-go, records tGo, announces once, and is idempotent", () => {
+    vi.useFakeTimers()
+    const ev = events()
+    run()
+    vi.advanceTimersByTime(400)
+    expect(boot().go()).toBe("full")
+    expect(html.hasAttribute("data-intro-go")).toBe(true)
+    expect(boot().tGo).toBeGreaterThanOrEqual(boot().t0 + 400)
+    expect(boot().go()).toBe("full")
+    expect(ev.go).toHaveBeenCalledTimes(1)
+    ev.off()
+  })
+
+  it("plays full when ready inside the budget and short when ready a little later", () => {
+    vi.useFakeTimers()
+    run()
+    vi.advanceTimersByTime(READY.fullBy - 1)
+    expect(boot().plan()).toBe("full")
+    vi.advanceTimersByTime(2)
+    expect(boot().plan()).toBe("short")
+    expect(boot().go()).toBe("short")
+    expect(html.dataset.intro).toBe("short")
+    expect(boot().mode).toBe("short")
+  })
+
+  it("go(mode) takes the mode the stage prepared for", () => {
+    vi.useFakeTimers()
+    run()
+    expect(boot().go("short")).toBe("short")
+    expect(html.dataset.intro).toBe("short")
+  })
+
+  it("re-arms the timeout from go, not from boot", () => {
+    vi.useFakeTimers()
+    run()
+    vi.advanceTimersByTime(READY.fullBy - 100)
+    boot().go()
+    vi.advanceTimersByTime(INTRO.full.timeout - 1)
+    expect(html.dataset.intro).toBe("full")
+    vi.advanceTimersByTime(2)
+    expect(html.dataset.intro).toBe("done")
+  })
+
+  it("aborts with a soft fade when go never comes, then ends; a late go does nothing", () => {
+    vi.useFakeTimers()
+    const ev = events()
+    run()
+    vi.advanceTimersByTime(READY.abortAt + 1)
+    expect(html.dataset.intro).toBe("abort")
+    expect(boot().aborted).toBe(1)
+    expect(ev.end).toHaveBeenCalledTimes(1)
+    expect(boot().plan()).toBe("")
+    expect(boot().go()).toBe("")
+    expect(html.hasAttribute("data-intro-go")).toBe(false)
+    expect(html.dataset.intro).toBe("abort")
+    vi.advanceTimersByTime(READY.abortFade + 40)
+    expect(html.dataset.intro).toBe("done")
+    expect(ev.end).toHaveBeenCalledTimes(1)
+    ev.off()
+  })
+
+  it("an abort waits for web fonts still loading (no fallback-font reveal), capped at fontsBy", async () => {
+    vi.useFakeTimers()
+    let settle: () => void = () => {}
+    const ready = new Promise<void>((r) => (settle = r))
+    const fonts = { status: "loading", ready }
+    Object.defineProperty(document, "fonts", { value: fonts, configurable: true })
+    try {
+      const ev = events()
+      run()
+      vi.advanceTimersByTime(READY.abortAt + 1)
+      expect(html.dataset.intro).toBe("full") // still ink: the fonts are not in yet
+      expect(boot().go()).toBe("") // no late start while it waits
+      expect(ev.end).not.toHaveBeenCalled()
+      settle()
+      await ready
+      await Promise.resolve()
+      expect(html.dataset.intro).toBe("abort")
+      expect(ev.end).toHaveBeenCalledTimes(1)
+      vi.advanceTimersByTime(READY.fontsBy)
+      expect(ev.end).toHaveBeenCalledTimes(1) // the cap timer does nothing once faded
+      ev.off()
+    } finally {
+      delete (document as { fonts?: unknown }).fonts
+    }
+  })
+
+  it("an abort never waits for a stalled font past fontsBy", () => {
+    vi.useFakeTimers()
+    const fonts = { status: "loading", ready: new Promise<void>(() => {}) }
+    Object.defineProperty(document, "fonts", { value: fonts, configurable: true })
+    try {
+      run()
+      vi.advanceTimersByTime(READY.fontsBy - 1)
+      expect(html.dataset.intro).toBe("full")
+      vi.advanceTimersByTime(2)
+      expect(html.dataset.intro).toBe("abort")
+      expect(boot().aborted).toBe(1)
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }))
+      vi.advanceTimersByTime(READY.abortFade + 40)
+      expect(html.dataset.intro).toBe("done")
+    } finally {
+      delete (document as { fonts?: unknown }).fonts
+    }
+  })
+
+  it("refuses a go after the budget even if the abort timer has not fired yet", () => {
+    vi.useFakeTimers()
+    run()
+    vi.setSystemTime(Date.now())
+    vi.advanceTimersByTime(READY.abortAt + 5)
+    expect(boot().go()).toBe("")
+  })
+
+  it("a skip before go ends at once with no fade", () => {
+    vi.useFakeTimers()
+    run()
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }))
+    expect(html.dataset.intro).toBe("done")
+    expect(boot().go()).toBe("")
+    vi.advanceTimersByTime(READY.abortAt + 500)
+    expect(html.dataset.intro).toBe("done")
+  })
+
+  it("a skip during the sequence ends it at once", () => {
+    vi.useFakeTimers()
+    run()
+    boot().go()
+    vi.advanceTimersByTime(800)
+    window.dispatchEvent(new Event("wheel"))
+    expect(html.dataset.intro).toBe("done")
+  })
+
+  it("?intro=full forces the mode with no budget and no abort until the last-resort cap", () => {
+    vi.useFakeTimers()
+    setUrl("/?intro=full")
+    run()
+    vi.advanceTimersByTime(READY.abortAt * 3)
+    expect(html.dataset.intro).toBe("full")
+    expect(boot().plan()).toBe("full")
+    expect(boot().go()).toBe("full")
+    vi.advanceTimersByTime(INTRO.full.timeout + 1)
+    expect(html.dataset.intro).toBe("done")
+  })
+
+  it("?intro=full still ends by the last-resort cap if go never comes", () => {
+    vi.useFakeTimers()
+    setUrl("/?intro=full")
+    run()
+    vi.advanceTimersByTime(READY.safe + READY.abortFade + 100)
+    expect(html.dataset.intro).toBe("done")
+  })
+
+  it("keeps a sane budget", () => {
+    expect(READY.fullBy).toBeLessThan(READY.abortAt)
+    expect(READY.abortAt).toBeLessThanOrEqual(2000)
+    expect(READY.abortFade).toBeLessThanOrEqual(400)
+    expect(READY.fontsBy).toBeGreaterThan(READY.abortAt)
+    expect(READY.fontsBy).toBeLessThanOrEqual(3000)
   })
 })
 

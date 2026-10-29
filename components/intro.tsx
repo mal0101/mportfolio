@@ -13,11 +13,12 @@ const ROOT_VARS = `:root{${Object.entries(VARS)
 /**
  * The opening overlay, "Exposure" (DESIGN §6.1). Server-rendered and hidden by an inline style; only
  * html[data-intro="full|short"] (set by the boot script in app/layout.tsx) shows it, so visitors without JS or CSS never
- * see it. The year reel is pure CSS (timings from INTRO, as custom properties), the canvas is driven by <IntroStage>.
+ * see it. It paints as plain ink; the year reel (pure CSS, timings from INTRO as custom properties) and the canvas
+ * (<IntroStage>) stay invisible and still until the go signal, once fonts, portrait and layout are ready.
  * Purely decorative: aria-hidden, pointer-events: none, nothing focusable. The page underneath is fully rendered.
  */
 export function Intro() {
-  preload(photos.portrait.img.src, { as: "image" }) // fetched early: the exposure flash develops this photo
+  preload(photos.portrait.img.src, { as: "image", fetchPriority: "high" }) // fetched early: the sequence waits for it (decoded) before it starts
   return (
     <>
       <style>{ROOT_VARS}</style>

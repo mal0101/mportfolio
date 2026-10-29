@@ -281,8 +281,10 @@ Server components unless noted. Helpers live in `components/ui`.
   - Lamps (`core` per lamp): the pointer lens (radius 150px, 120 below 1280px; fine pointers only; core 1), the touch
     bloom (tap; radius `max(140, 0.45 x rect.h)` in portrait mode, 140 for the mark; grow 1400ms, hold 700ms, fade
     1200ms; core 1), and the hand-off bloom over the portrait once on load (radius 1.05 x the rect's half-diagonal). Without an
-    opening it fires at 650ms with core 0 (pure halftone). With an opening it fires at `introClock(t0) + collapse`
-    (the CSS clock, §6.1), or at once on a skip (`mm:intro-end`), with the colour core:
+    opening it fires at 650ms with core 0 (pure halftone); so does an aborted opening (`__mmIntro.aborted`), at once, under
+    the fading ink, and so does a skip before go. With an opening it arms at go (`mm:intro-go`, or at init if go already
+    happened) and fires at `introClock(tGo) + collapse` of the mode that plays (the CSS clock, §6.1), or at once on a skip
+    (`mm:intro-end`), with the colour core:
     `grow 0, hold collapseDur+100, fade 1000, core 1`, so the page already shows her photo as the overlay clears, then eases to halftone and the ghost.
     It reads the field when it fires, so a resize during the opening blooms on the rebuilt portrait.
   - States: in daylight the portrait rests as a faint ghost (`GHOST = 0.14`, v3.1 P2b), so a face silhouette is always
@@ -348,7 +350,31 @@ decorative, `aria-hidden`, nothing focusable, `pointer-events: none`) on `--ink`
 "uv lamp · 365 nm", `CONFIRM(malak)`). Deliberately none of axonsecurity.tech's moves: no percentage counter, no boot
 log or scramble text, no centre-line split, no logo draw-on.
 
-Full sequence (ms from the CSS clock, timings in `INTRO.full`):
+Ready-gated start (v3.2). The sequence's clock starts at **go**, not at the boot script's `t0`. From `t0` the overlay is
+plain `--ink` with nothing visible on it (reel, top line and the flying square are `visibility: hidden`; no text, spinner
+or counter, so no fallback font is ever seen) and every intro animation keys on `html[data-intro-go]`. `IntroStage`
+awaits, after hydration, the display fonts (`document.fonts.load` for the families and weights read from computed style of
+the overlay and hero, then `fonts.ready`), the portrait decoded (`img.decode()`), and `prep()` (dots, matte, cutout, and
+`measureStop` with the real fonts, which sets `data-measured` on the overlay), then in an animation frame calls
+`window.__mmIntro.go(mode)`. `go` (in `BOOT`) sets `data-intro-go`, records `tGo`, may switch the mode, re-arms the
+timeout from `tGo`, and dispatches `mm:intro-go`; it is idempotent. `introClock` follows the overlay's CSS animation
+`startTime`, which is the frame after `tGo`, so the canvas, the CSS and HeroField's bloom share the go clock. Budget from
+`t0` (`READY` in `lib/intro.ts`, inlined into `BOOT`): go by 900ms plays the mode as decided (full); go by 1600ms plays
+**short**; no go by 1600ms **aborts**. The abort first waits for the web fonts if any are still loading
+(`document.fonts.status === "loading"`: it waits for `document.fonts.ready`, capped at `READY.fontsBy` = 2800ms from
+`t0`), so the page is never revealed in a fallback font that swaps a moment later (Slow 4G: the fonts land about 1.9s
+after `t0`, about 300ms after the 1600ms budget); no go is accepted while it waits. Then `data-intro="abort"`, the ink
+fades out over 300ms (`--ease-soft`), `mm:intro-end` fires with `__mmIntro.aborted = 1` and the page shows; a late
+`IntroStage` finds `plan()` empty and does nothing. Without the JS bundle (the boot script is inline) the same timer
+fades the ink out onto the styled page. `?intro=full|short` forces the mode with no budget and no abort (QA; cap `READY.safe`
+8s); `?intro=off` skips. Thresholds come from cold production loads: warm desktop is ready in 0.1-0.5s, Fast 4G and mobile
+at 4x CPU in 0.6-0.75s, Slow 4G never (JS lands about 2.7s after `t0`), so 900 keeps the full sequence for anything with
+normal JS delivery, and 1600 stops the overlay holding the page hostage. `.intro-stop` is invisible and has no animation
+until `data-measured`, so it never flies to a fallback position. The hero's own full stop is `visibility: hidden` until
+go: the fonts can swap in under the ink, and the stop, moved about 230px by the new line width, counted as a layout shift
+(CLS 0.13 on Fast 4G desktop; 0.017 with it hidden, as before v3.2). The portrait preload is `fetchPriority: "high"`.
+
+Full sequence (ms from go, timings in `INTRO.full`):
 
 - **0-1750, year reel**: the chapter years from `data/story.ts` roll in a clipped slot (280ms each), each in its chapter
   ink with its title in mono (2022 "Foundation", 2024 "First build", 2025 "In production", 2026 "Ship under pressure"),
@@ -380,7 +406,7 @@ Full sequence (ms from the CSS clock, timings in `INTRO.full`):
   opacity is never animated (LCP). No clip-path shrink: it read as a black box over the name.
 - Short variant (later views in the session, about 1.1s): no reel; the portrait develops in place, flash at 300ms
   (250ms), hand-off at 450ms (`collapseDur` 380, ink clear 220ms, top line 200ms); the square starts from the
-  bottom-left corner; fluoresce 700ms; no reel and no ink tint. Timeouts: full 3100ms, short 1150ms from `t0`, about 350/320ms of slack after
+  bottom-left corner; fluoresce 700ms; no reel and no ink tint. Timeouts: full 3100ms, short 1150ms from go (`tGo`), about 350/320ms of slack after
   the hand-off; the overlay hides itself regardless, so the timeout only cleans up `data-intro`.
 
 Smoothness (v3.1 P3b, measured on a production build in headless Chrome, rAF intervals and long tasks, 1440x900 and
@@ -393,6 +419,13 @@ canvas and the hero are what a slow main thread drops. What was done about that:
   with a timeout of `max(120, collapse - 700)` ms, 60ms timer where it is missing), no longer inside the font callbacks
   next to hydration, and `portraitDots`, `matteCanvas` and `bakeCutout` are memoised (one entry each) so the intro and
   HeroField compute the dot grid, the matte and the cutout once between them.
+- Low-end rule (v3.2). The frame cost at 4x CPU is the raster, not the JS (about 8ms of JS a frame, but 16 fps; density 1
+  gave 48 fps, dash pitch made no difference). So: 4 cores or fewer (`navigator.hardwareConcurrency`) start the overlay
+  canvas at density 1, and anything else running above density 1 drops to 1 once if at least 5 of the first 8 frame gaps
+  after go exceed 22ms (the lower median: an upper median tripped a healthy 2x desktop whose go frames were 4 x 33ms
+  and 4 x 16.7ms) (the canvas is resized and redrawn in the same frame and the landed layer is rebuilt, before any
+  square has landed, so nothing jumps; a 1x screen is never sampled; measured: 2x desktop at 4x CPU drops about 740ms
+  after go and runs at 60 fps after, 1x CPU stays at 1.5).
 - Cheaper frames. The overlay canvas density is capped at 1.5 (`DPR_CAP`; it only bites on 2x desktop screens; the cutout is
   baked at the hero's density, and at 2x no sharpness step is visible at the hand-off, since the 625px source carries no
   more detail than that: the rect is capped at 1.5 x 625 / dpr). Dashes are bucketed by alpha once (counting sort) and
@@ -406,16 +439,16 @@ canvas and the hero are what a slow main thread drops. What was done about that:
 - Not fixable here: JS evaluation and React hydration land at about 0-300ms (several 55-120ms tasks at 4x CPU, none
   at 1x); the reel and the fades keep playing through them because they are compositor animations.
 
-One clock: the CSS animations start at the overlay's first style, a few frames after the boot script's
-`__mmIntro.t0` (measured 30-110ms locally, longer on slow devices). The canvas and HeroField's bloom therefore run off
-`introClock(t0)`, the overlay's CSS animation `startTime` (the document timeline shares `performance.now()`'s origin),
-falling back to `t0` while the CSS is pending or where `getAnimations` is missing.
+One clock: the CSS animations start the frame after go, a frame or so after `__mmIntro.tGo` (measured 30-110ms locally, longer on slow devices). The canvas and HeroField's bloom therefore run off
+`introClock(tGo)`, the overlay's CSS animation `startTime` (the document timeline shares `performance.now()`'s origin),
+falling back to `tGo` while the CSS is pending or where `getAnimations` is missing.
 
 The inline boot script (`BOOT`, in `<head>` of `app/layout.tsx`) restores the lamp, then on `/` picks the mode: none (reduced
 motion, `?intro=off`, deep-link hash other than `#top`, back/forward navigation, storage blocked), `full` (first view in
 the session, `sessionStorage` key `mm-intro`) or `short` (later views). `?intro=full|short` forces a mode. Any key,
-pointer, wheel or touch ends it at once (`window.__mmIntro.end`, idempotent); a timeout also ends it; it dispatches
-`mm:intro-end`. On a skip the overlay hides at once, the canvas loop stops and frees its backing store, the name and
+pointer, wheel or touch ends it at once, before or after go (`window.__mmIntro.end`, idempotent); a timeout also ends it
+(from `tGo`, or the abort before go); it dispatches `mm:intro-go` and `mm:intro-end`. `__mmIntro` carries `mode`, `t0`, `tGo`,
+`aborted`, `end`, `go`, `plan`. On a skip the overlay hides at once, the canvas loop stops and frees its backing store, the name and
 full stop are at rest, and HeroField blooms the colour photo immediately, settling to the ghost over about 1.7s.
 
 ### 6.2 Page motion
@@ -493,6 +526,11 @@ layer are hidden.
 
 ## 10. Changelog
 
+- **2026-10-29 v3.2: ready-gated opening.** The overlay is plain ink until fonts, portrait and layout are ready; the
+  sequence clock starts at go (full by 900ms from `t0`, short by 1600ms, otherwise a 300ms soft abort that first waits
+  for the web fonts, capped at 2800ms). No fallback-font text or reveal, no stray square, no mid-reel dash pop-in;
+  `.intro-stop` needs `data-measured`; the hero full stop is hidden until go (CLS); low-end canvas density rule;
+  HeroField arms its hand-off at go. Details in §6.1, §5.11.
 - **2026-10-29 v3.1 responsive QA (320-1920, touch and desktop).**
   - Axon header row spans `md:col-span-6` at md (at 768 the title and tagline had auto-placed into 1/6 columns).
   - `.chapter-to` drops below the year under 380px (at 320 "2022 to 2023" overflowed the viewport by 24px).

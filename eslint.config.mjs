@@ -21,6 +21,6 @@ export default [
     languageOptions: { globals: { Buffer: "readonly", console: "readonly", process: "readonly" } },
   },
   {
-    ignores: [".next/**", "node_modules/**"],
+    ignores: [".next/**", "node_modules/**", ".opencode/**", "next-env.d.ts"],
   },
 ]

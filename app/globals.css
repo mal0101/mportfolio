@@ -1509,8 +1509,8 @@ html[data-lamp="on"] {
 }
 .intro-stop {
   position: absolute;
-  left: var(--i-stop-x, 50%);
-  top: var(--i-stop-y, 50%);
+  left: var(--i-stop-x, 0);
+  top: var(--i-stop-y, 0);
   width: var(--i-stop-s, 16px);
   height: var(--i-stop-s, 16px);
   background: var(--uv);
@@ -1538,64 +1538,91 @@ html[data-lamp="on"] {
   --ink-c: var(--uv);
 }
 
-/* sequence states (set by the boot script in app/layout.tsx) */
+/* sequence states (set by the boot script in app/layout.tsx). The overlay paints as plain ink at once; nothing on it is
+   visible and nothing animates until IntroStage calls go() (fonts, portrait and layout ready), which sets data-intro-go
+   and may switch the mode full -> short. Every animation below keys on [data-intro-go], so the sequence's clock starts at go. */
 html[data-intro="full"] .intro,
-html[data-intro="short"] .intro {
+html[data-intro="short"] .intro,
+html[data-intro="abort"] .intro {
   display: block !important;
 }
 html[data-intro="done"] .intro {
   display: none !important;
 }
-html[data-intro="full"] .intro {
+.intro-top,
+.intro-reel,
+.intro-stop {
+  visibility: hidden;
+}
+html[data-intro-go] :is(.intro-top, .intro-reel) {
+  visibility: visible;
+}
+/* the stop is invisible until IntroStage has measured where the full stop is (data-measured): it never flies to a fallback */
+html[data-intro-go] .intro[data-measured] .intro-stop {
+  visibility: visible;
+}
+/* no go by the budget: the ink fades out softly and the page shows (the boot script ends it after the fade) */
+html[data-intro="abort"] .intro {
+  animation:
+    intro-clear 300ms var(--ease-soft) forwards,
+    intro-end 1ms linear 300ms forwards;
+}
+html[data-intro="full"][data-intro-go] .intro {
   animation:
     intro-clear 320ms var(--ease-soft) var(--i-collapse) forwards,
     intro-end 1ms linear calc(var(--i-collapse) + var(--i-collapse-dur)) forwards;
 }
-html[data-intro="short"] .intro {
+html[data-intro="short"][data-intro-go] .intro {
   animation:
     intro-clear 220ms var(--ease-soft) var(--i-s-collapse) forwards,
     intro-end 1ms linear calc(var(--i-s-collapse) + var(--i-s-collapse-dur)) forwards;
 }
 /* the full stop: a UV square leaves the end of "now" and lands on the hero's full stop, which takes over as it vanishes */
-html[data-intro="full"] .intro-stop {
+html[data-intro="full"][data-intro-go] .intro[data-measured] .intro-stop {
   animation: intro-fly var(--i-collapse-dur) var(--ease-snap) var(--i-collapse) forwards;
 }
-html[data-intro="short"] .intro-stop {
+html[data-intro="short"][data-intro-go] .intro[data-measured] .intro-stop {
   animation: intro-fly var(--i-s-collapse-dur) var(--ease-snap) var(--i-s-collapse) forwards;
 }
 html[data-intro="short"] .intro-reel {
   display: none;
 }
 /* the reel: each year rolls in from below (backwards fill) and out upward (forwards fill); base state is in place */
-html[data-intro="full"] .intro-yr {
+html[data-intro="full"][data-intro-go] .intro-yr {
   animation:
     intro-roll-in calc(var(--i-reel) * 0.92) var(--ease-roll) calc(var(--i-reel) * var(--k)) backwards,
     intro-roll-out calc(var(--i-reel) * 0.92) var(--ease-roll) calc(var(--i-reel) * (var(--k) + 1)) forwards;
 }
-html[data-intro="full"] .intro-yr:nth-child(4) {
+html[data-intro="full"][data-intro-go] .intro-yr:nth-child(4) {
   animation-delay: calc(var(--i-reel) * 3), var(--i-now); /* 2026 holds until it becomes "now" */
 }
-html[data-intro="full"] .intro-yr-now {
+html[data-intro="full"][data-intro-go] .intro-yr-now {
   animation: intro-roll-in calc(var(--i-reel) * 0.92) var(--ease-roll) var(--i-now) backwards;
 }
 /* quick, so the faded "now" never sits over the hero copy (on phones it lands on the hint line) */
-html[data-intro="full"] :is(.intro-top, .intro-reel) {
+html[data-intro="full"][data-intro-go] :is(.intro-top, .intro-reel) {
   animation: intro-fade 180ms var(--ease-out) var(--i-collapse) forwards;
 }
-html[data-intro="short"] .intro-top {
+html[data-intro="short"][data-intro-go] .intro-top {
   animation: intro-fade 200ms var(--ease-out) var(--i-s-collapse) forwards;
 }
-/* the hero name develops, then its full stop lands as the overlay arrives (colour only: never the h1's opacity) */
-html[data-intro="full"] .hero-line {
+/* the hero name develops, then its full stop lands as the overlay arrives (colour only: never the h1's opacity). Before go
+   the name rests under the ink and its full stop is hidden: the web fonts may swap in under the ink, and a stop moved by
+   the new line width counts as a large layout shift (visibility, not display: IntroStage still measures it). After an
+   abort both are at rest. */
+html:is([data-intro="full"], [data-intro="short"]):not([data-intro-go]) .hero .full-stop {
+  visibility: hidden;
+}
+html[data-intro="full"][data-intro-go] .hero-line {
   animation: intro-fluoresce 900ms var(--ease-soft) var(--i-collapse) both;
 }
-html[data-intro="full"] .hero .full-stop {
+html[data-intro="full"][data-intro-go] .hero .full-stop {
   animation: intro-land 1ms linear calc(var(--i-collapse) + var(--i-collapse-dur)) both;
 }
-html[data-intro="short"] .hero-line {
+html[data-intro="short"][data-intro-go] .hero-line {
   animation: intro-fluoresce 700ms var(--ease-soft) var(--i-s-collapse) both;
 }
-html[data-intro="short"] .hero .full-stop {
+html[data-intro="short"][data-intro-go] .hero .full-stop {
   animation: intro-land 1ms linear calc(var(--i-s-collapse) + var(--i-s-collapse-dur)) both;
 }
 @media (prefers-reduced-motion: reduce) {

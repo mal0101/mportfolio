@@ -10,18 +10,27 @@ import { bakeCutout, drawCell, matteCanvas, mulberry32, type Rect } from "@/lib/
 /*
  * The canvas half of the opening, "Exposure" (DESIGN §6.1). Renders nothing itself: it draws on the overlay's <canvas>.
  * Every visual is a pure function of elapsed = performance.now() - introClock(), the CSS timeline's start, so the canvas
- * and the CSS reel/collapse share one clock and a late hydration just catches up.
+ * and the CSS reel/collapse share one clock. That clock starts at GO (window.__mmIntro.go(), DESIGN §6.1), not at boot: the
+ * overlay is plain ink until this component has everything the sequence needs (fonts loaded, portrait decoded, dots,
+ * matte, cutout and the full stop measured with the real fonts), so nothing is ever drawn late or in a fallback font.
  *   0-700   a dash field drifts on a value-noise flow field and cross-dissolves into each year's ink as the reel rolls
  *   700-1750  dashes fade in and fly (eased in and out, curved paths, bright tones first) to the portrait's dots and
  *             become UV squares: her face develops
  *   1750-2150 the real photo develops over the rect from the face outward (a smooth ramp, not a pop)
- * The whole canvas fades in over 280ms from its first drawn frame, so a late hydration never pops the dashes in.
+ * The whole canvas fades in over 280ms from its first drawn frame (which is the go frame).
  *   2150-2750 the hand-off: ink + reel clear (CSS), the dashes fade here, the overlay portrait crossfades into the page's own
  *             (HeroField blooms its colour core at the same instant) and a UV square (CSS) flies to the hero full stop
  * The dots use heroPortrait(), the same function HeroField's layout is built from, so they land on the hero's own dots.
  */
 
-type Boot = { mode: IntroMode; t0: number; end?: () => void }
+type Boot = {
+  mode: IntroMode
+  t0: number
+  tGo?: number
+  end?: () => void
+  go?: (m?: IntroMode) => string
+  plan?: () => string
+}
 const TAU = Math.PI * 2
 const clamp01 = (t: number) => (t < 0 ? 0 : t > 1 ? 1 : t)
 const smooth = (t: number) => t * t * (3 - 2 * t)
@@ -51,22 +60,32 @@ const MORPH = 140 // dash -> square, ms
 const LAUNCH = 120 // a flying dash fades in over this long, ms
 const CANVAS_IN = 280 // the canvas fades in from its first drawn frame, ms
 const DPR_CAP = 1.5 // the overlay canvas: a full-viewport raster, so capped (the cutout keeps the hero's sharpness)
+// Low-end rule: the cost is the raster (pixels), not the JS (about 8 ms a frame even at 4x CPU). 4 cores or fewer start at
+// density 1; anything else above density 1 drops to 1 if the first frames are slow (most of the first SAMPLE gaps over
+// SLOW_MS: the lower median, so a healthy 60 fps start with a few doubled frames at go never trips it), so a weak
+// device keeps its frame rate (a 1x screen has nothing to drop and is never sampled).
+const LOW_CORES = 4
+const SLOW_MS = 22
+const SAMPLE = 8
 const FACE = { u: 0.5, v: 0.4 } // where the exposure starts, as a fraction of the portrait rect
 
 export function IntroStage() {
   useEffect(() => {
     const html = document.documentElement
-    const mode = html.dataset.intro
-    if (mode !== "full" && mode !== "short") return
+    const mode0 = html.dataset.intro
+    if (mode0 !== "full" && mode0 !== "short") return
     const canvas = document.querySelector<HTMLCanvasElement>(".intro canvas")
     const ctx = canvas?.getContext("2d")
     if (!canvas || !ctx) return // jsdom / no canvas: the CSS reel and collapse still play
     const overlay = canvas.closest<HTMLElement>(".intro")
-    const M = INTRO[mode]
     const boot = (window as Window & { __mmIntro?: Boot }).__mmIntro
-    const boot0 = boot?.t0 ?? performance.now()
-    let t0 = introClock(boot0)
-    let synced = t0 !== boot0
+    if (!boot?.go || !boot.plan) return // no boot script: nothing to start (the safety timer clears the overlay)
+    let mode: IntroMode = mode0
+    let M = INTRO[mode]
+    let boot0 = performance.now()
+    let t0 = boot0
+    let synced = false
+    let started = false
 
     const css = getComputedStyle(html)
     const tok = (n: string) => css.getPropertyValue(n).trim()
@@ -85,6 +104,9 @@ export function IntroStage() {
     let w = 0
     let h = 0
     let dpr = 1
+    let dprCap = (navigator.hardwareConcurrency || 8) <= LOW_CORES ? 1 : DPR_CAP
+    let lastAt = 0
+    const gaps: number[] = []
     let cdpr = 1 // the cutout's own density: the hero's, so the photo is as sharp as the one it hands off to
     let resizeTimer = 0
     let stopTimer = 0
@@ -113,6 +135,8 @@ export function IntroStage() {
     let plen = new Float32Array(0)
     let pang = new Float32Array(0)
     let dotPitch = 6
+    let dotSet: NonNullable<ReturnType<typeof heroPortrait>["dots"]> | null = null
+    let dotOrg = { x: 0, y: 0 }
     let cutout: HTMLCanvasElement | null = null
     let img: HTMLImageElement | null = null
     const tmp = document.createElement("canvas")
@@ -120,7 +144,7 @@ export function IntroStage() {
     const size = () => {
       w = html.clientWidth
       h = window.innerHeight
-      dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP)
+      dpr = Math.min(window.devicePixelRatio || 1, dprCap)
       cdpr = fieldDpr(w < 768)
       canvas.width = Math.round(w * dpr)
       canvas.height = Math.round(h * dpr)
@@ -168,14 +192,48 @@ export function IntroStage() {
       out[2] = noise(bx * 0.005 + ph, by * 0.005, 7) * TAU * 1.2
     }
 
-    // ── portrait: the hero's own dots, in viewport coordinates ──
+    // ── readiness: everything the sequence needs, before the clock starts ──
+    // The display fonts, loaded for the families the overlay and the hero actually use (read from computed style, so
+    // next/font's generated names are never hard-coded). Nothing is visible before go, so no fallback font is ever seen.
+    const loadFonts = async () => {
+      const fs = document.fonts
+      if (!fs?.load) return
+      const jobs: Promise<unknown>[] = []
+      const seen = new Set<string>()
+      for (const sel of [".intro-num", ".intro-cap", ".intro-top", ".hero h1", ".hero p"]) {
+        const el = document.querySelector(sel)
+        if (!el) continue
+        const cs = getComputedStyle(el)
+        const spec = `${cs.fontStyle} ${cs.fontWeight} 16px ${cs.fontFamily}`
+        if (seen.has(spec)) continue
+        seen.add(spec)
+        jobs.push(fs.load(spec, "Aa0 mmalak 2026").catch(() => []))
+      }
+      await Promise.all(jobs)
+      await fs.ready
+    }
+    const loadPhoto = () =>
+      new Promise<HTMLImageElement | null>((resolve) => {
+        const im = new Image()
+        im.decoding = "async"
+        im.onerror = () => resolve(null)
+        im.src = photos.portrait.img.src
+        if (im.decode)
+          im.decode().then(
+            () => resolve(im),
+            () => (im.onload = () => resolve(im)),
+          )
+        else im.onload = () => resolve(im)
+      })
+
+    // ── portrait: the hero's own dots, in viewport coordinates (mode independent; `build` makes the flight) ──
     const prep = async () => {
-      await Promise.race([document.fonts?.ready ?? Promise.resolve(), new Promise((r) => setTimeout(r, 650))])
+      await loadFonts()
       if (dead) return
       await yieldMain() // never in the same task as the font callbacks or HeroField's own start-up
       const hero = document.querySelector<HTMLElement>(".hero")
       const wrap = document.querySelector<HTMLElement>(".hero-field")
-      measureStop()
+      measureStop() // with the real fonts
       if (!hero || !wrap) return
       if (hero.getBoundingClientRect().bottom < 0.5 * window.innerHeight) return // scrolled away: reel + collapse only
       const { L, rect: pr, dots } = heroPortrait(hero, wrap)
@@ -185,6 +243,15 @@ export function IntroStage() {
       const o = wrap.getBoundingClientRect()
       rect = { x: o.left + pr.x, y: o.top + pr.y, w: pr.w, h: pr.h }
       dotPitch = L.pitch / 2
+      dotSet = dots
+      dotOrg = { x: o.left, y: o.top }
+      cutout = null
+    }
+
+    // the flight of every dot for the mode that will play (cheap: runs after prep, just before go)
+    const build = () => {
+      if (!rect || !dotSet) return
+      const dots = dotSet
       const n = dots.x.length
       const r = mulberry32(2026)
       const nd = dx0.length
@@ -194,8 +261,8 @@ export function IntroStage() {
       plen = new Float32Array(n)
       pang = new Float32Array(n)
       for (let d = 0; d < n; d++) {
-        const tx = o.left + dots.x[d]
-        const ty = o.top + dots.y[d]
+        const tx = dotOrg.x + dots.x[d]
+        const ty = dotOrg.y + dots.y[d]
         const hh = r()
         const tone = dots.tone[d]
         if (mode === "full") {
@@ -223,7 +290,6 @@ export function IntroStage() {
         lg.globalCompositeOperation = "lighter"
         lg.fillStyle = UV
       }
-      bake()
     }
 
     const yieldMain = () => new Promise<void>((r) => setTimeout(r, 0))
@@ -248,6 +314,7 @@ export function IntroStage() {
       const cx = r.left + r.width / 2
       const cy = r.top + r.height / 2
       const sw = el.offsetWidth || r.width
+      if (!(sw > 0)) return // not laid out (hidden): the square stays invisible rather than guessing
       const px = (n: number) => `${Math.round(n * 10) / 10}px`
       overlay.style.setProperty("--i-stop-x", px(cx - sw / 2))
       overlay.style.setProperty("--i-stop-y", px(cy - sw / 2))
@@ -262,6 +329,7 @@ export function IntroStage() {
       overlay.style.setProperty("--i-from-dx", px(fx - cx))
       overlay.style.setProperty("--i-from-dy", px(fy - cy))
       overlay.style.setProperty("--i-from-k", String(Math.round((s0 / sw) * 1000) / 1000))
+      overlay.dataset.measured = "" // the flying square is invisible until it knows where it lands
     }
 
     // ── one frame, a pure function of e (and `fin`, the canvas's own fade-in) ──
@@ -465,45 +533,72 @@ export function IntroStage() {
       raf = 0
       if (dead) return
       if (!synced) {
-        t0 = introClock(boot0) // pending on a very early hydration: resolves once the CSS animations have started
+        t0 = introClock(boot0) // pending until the CSS animations have started (the frame after go): resolves to their startTime
         synced = t0 !== boot0
       }
       const now = performance.now()
       const e = now - t0
       if (html.dataset.intro !== "full" && html.dataset.intro !== "short") return stop()
       if (firstAt < 0) firstAt = now
+      if (lastAt && dpr > 1 && gaps.length < SAMPLE) {
+        gaps.push(now - lastAt)
+        if (gaps.length === SAMPLE && [...gaps].sort((a, b) => a - b)[(SAMPLE >> 1) - 1] > SLOW_MS) {
+          // slow raster: density 1, once (the canvas is redrawn every frame; the landed-square layer is rebuilt)
+          dprCap = dpr = 1
+          canvas.width = Math.round(w)
+          canvas.height = Math.round(h)
+          build()
+        }
+      }
+      lastAt = now
       frame(e, smooth01((now - firstAt) / CANVAS_IN))
       raf = requestAnimationFrame(loop)
     }
     const onResize = () => {
       window.clearTimeout(resizeTimer)
-      resizeTimer = window.setTimeout(() => {
+      resizeTimer = window.setTimeout(async () => {
         if (dead) return
         cutout = null
         size()
-        prep()
+        await prep()
+        if (dead) return
+        bake()
+        if (started) build()
       }, 120)
     }
 
+    // The ready gate: fonts, portrait, dots, matte, cutout and the stop's position, then (in a frame, so the CSS
+    // timeline and the first canvas frame start together) the go signal. The boot script decides the mode from how long
+    // that took and refuses a go after its budget (abort): a late IntroStage then does nothing.
+    const run = async () => {
+      const [, photo] = await Promise.all([prep(), loadPhoto()])
+      if (dead) return
+      img = photo
+      bake()
+      const planned = boot.plan?.()
+      if (planned !== "full" && planned !== "short") return // skipped or aborted while getting ready
+      mode = planned
+      M = INTRO[mode]
+      build()
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        if (dead) return
+        const got = boot.go?.(mode)
+        if (got !== "full" && got !== "short") return
+        mode = got
+        M = INTRO[mode]
+        boot0 = t0 = boot.tGo ?? performance.now()
+        started = true
+        // re-measure the full stop just before the collapse starts (late layout)
+        stopTimer = window.setTimeout(measureStop, Math.max(0, t0 + M.collapse - 80 - performance.now()))
+        loop()
+      })
+    }
+
     size()
-    loop()
     window.addEventListener("mm:intro-end", stop)
     window.addEventListener("resize", onResize)
-    prep()
-    // re-measure the full stop just before the collapse starts (fonts, late layout)
-    stopTimer = window.setTimeout(measureStop, Math.max(0, t0 + M.collapse - 80 - performance.now()))
-    {
-      const im = new Image()
-      im.decoding = "async"
-      const ready = () => {
-        if (dead || img) return
-        img = im
-        bake()
-      }
-      im.onload = ready
-      im.src = photos.portrait.img.src
-      im.decode?.().then(ready, () => {})
-    }
+    run()
 
     return stop
   }, [])

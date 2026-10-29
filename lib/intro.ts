@@ -2,7 +2,8 @@
 // flying particles, and the inline boot script. Pure module: no DOM access at import time.
 
 /**
- * All times in ms after the boot script ran (window.__mmIntro.t0). components/intro.tsx writes them as CSS custom
+ * Per-mode times are in ms after the GO signal (window.__mmIntro.tGo): the sequence's clock starts when everything it
+ * needs is ready (fonts, portrait, layout), not at the boot script's t0. components/intro.tsx writes them as CSS custom
  * properties, so the CSS keyframe delays, the canvas stage and HeroField's hand-off read one source of truth.
  */
 export const INTRO = {
@@ -33,7 +34,20 @@ export const INTRO = {
   },
 }
 
-export type IntroMode = keyof typeof INTRO
+/**
+ * The readiness budget, in ms after the boot script's t0 (inlined into BOOT). Until the go signal the overlay is plain
+ * ink with nothing on it.
+ *   go by `fullBy`  -> the full sequence;
+ *   go by `abortAt` -> the short one (the page is slow, shorten the show rather than delay the page);
+ *   not by `abortAt` -> abort: the ink fades out over `abortFade` and the page shows normally. If the web fonts are still
+ *                       loading then (document.fonts.status), the fade waits for document.fonts.ready, at most until
+ *                       `fontsBy`, so the page is never revealed in a fallback font that swaps a moment later.
+ * ?intro=full|short forces its mode with no budget (QA); `safe` is then only the last-resort cap.
+ * Measured on cold production loads (DESIGN §6.1): a warm desktop is ready in about 0.5-0.8 s, Fast 4G / 4x CPU in about 1 s.
+ */
+export const READY = { fullBy: 900, abortAt: 1600, fontsBy: 2800, abortFade: 300, safe: 8000 }
+
+export type IntroMode = "full" | "short"
 
 /** The CSS custom properties derived from INTRO (written inline on .intro and on :root by components/intro.tsx). */
 export function introVars(): Record<string, string> {
@@ -126,7 +140,12 @@ export function particleAt(p: Particle, ms: number): { x: number; y: number; k: 
  * 1. restores the UV lamp (localStorage "mm-lamp");
  * 2. on "/", decides the opening sequence: none (reduced motion, ?intro=off, deep link hash, back/forward, storage
  *    blocked), "full" (first view in this session) or "short" (later views); ?intro=full|short forces a mode;
- * 3. any key / pointer / wheel / touch ends it at once (so does window.__mmIntro.end()); a timeout cleans up; dispatches
+ * 3. the overlay is plain ink until window.__mmIntro.go() (called by IntroStage once fonts, portrait and layout are ready):
+ *    go() takes the mode from the READY budget (full by fullBy, else short), sets data-intro-go (every animation keys on
+ *    it), records tGo, and re-arms the timeout from tGo. No go by abortAt: the ink fades out (data-intro="abort"), once
+ *    the web fonts are in (fonts.ready, capped at fontsBy), and the page shows; a late go() does nothing. ?intro=full|short
+ *    skips the budget (and the abort);
+ * 4. any key / pointer / wheel / touch ends it at once (so does window.__mmIntro.end()); dispatches "mm:intro-go" and
  *    "mm:intro-end".
  */
-export const BOOT = `(function(){var d=document.documentElement;try{if(localStorage.getItem("mm-lamp")==="on")d.dataset.lamp="on"}catch(e){}try{if(location.pathname!=="/")return;if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;var q=/[?&]intro=(off|full|short)/.exec(location.search),p=window.performance,n=p&&p.getEntriesByType?p.getEntriesByType("navigation")[0]:null;if(q&&q[1]==="off")return;if(!q&&((location.hash&&location.hash!=="#top")||(n&&n.type==="back_forward")))return;var s=sessionStorage,m=q?q[1]:s.getItem("mm-intro")?"short":"full";s.setItem("mm-intro","1");d.dataset.intro=m;window.__mmIntro={mode:m,t0:p.now(),end:end};var ev=["keydown","pointerdown","wheel","touchstart"],done=0;function end(){if(done)return;done=1;d.dataset.intro="done";ev.forEach(function(e){removeEventListener(e,end,true)});dispatchEvent(new Event("mm:intro-end"))}ev.forEach(function(e){addEventListener(e,end,{capture:true,passive:true})});setTimeout(end,m==="full"?${INTRO.full.timeout}:${INTRO.short.timeout})}catch(e){}})()`
+export const BOOT = `(function(){var d=document.documentElement;try{if(localStorage.getItem("mm-lamp")==="on")d.dataset.lamp="on"}catch(e){}try{if(location.pathname!=="/")return;if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;var q=/[?&]intro=(off|full|short)/.exec(location.search),p=window.performance,n=p&&p.getEntriesByType?p.getEntriesByType("navigation")[0]:null;if(q&&q[1]==="off")return;if(!q&&((location.hash&&location.hash!=="#top")||(n&&n.type==="back_forward")))return;var s=sessionStorage,m=q?q[1]:s.getItem("mm-intro")?"short":"full";s.setItem("mm-intro","1");d.dataset.intro=m;var t0=p.now(),B=window.__mmIntro={mode:m,t0:t0,tGo:0,aborted:0,end:end,go:go,plan:plan},ev=["keydown","pointerdown","wheel","touchstart"],done=0,went=0,held=0,tm;function plan(){if(done||went||held)return"";if(q)return m;return p.now()-t0>${READY.abortAt}?"":m==="full"&&p.now()-t0>${READY.fullBy}?"short":m}function clean(){clearTimeout(tm);ev.forEach(function(e){removeEventListener(e,end,true)})}function go(g){if(done||held)return"";if(went)return B.mode;var k=g==="full"||g==="short"?g:plan();if(!k||(!q&&p.now()-t0>${READY.abortAt}))return"";went=1;B.mode=k;B.tGo=p.now();d.dataset.intro=k;d.dataset.introGo="";clearTimeout(tm);tm=setTimeout(end,k==="full"?${INTRO.full.timeout}:${INTRO.short.timeout});dispatchEvent(new Event("mm:intro-go"));return k}function end(){if(done)return;done=1;d.dataset.intro="done";clean();dispatchEvent(new Event("mm:intro-end"))}function abort(){if(done||held)return;if(went)return end();var f=document.fonts,out=function(){if(!done)fade()};if(f&&f.status==="loading"){held=1;f.ready.then(out,out);setTimeout(out,Math.max(0,t0+${READY.fontsBy}-p.now()))}else fade()}function fade(){done=1;B.aborted=1;d.dataset.intro="abort";clean();dispatchEvent(new Event("mm:intro-end"));setTimeout(function(){d.dataset.intro="done"},${READY.abortFade}+30)}ev.forEach(function(e){addEventListener(e,end,{capture:true,passive:true})});tm=setTimeout(abort,q?${READY.safe}:${READY.abortAt})}catch(e){}})()`

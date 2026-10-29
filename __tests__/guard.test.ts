@@ -78,4 +78,30 @@ describe("guards", () => {
     expect(used.size).toBeGreaterThan(0)
     for (const name of used) expect(rootBlock, name).toContain(`${name}:`)
   })
+
+  it("keys every intro animation on the go signal, and never shows the flying stop unmeasured", () => {
+    const css = readFileSync(at("app", "globals.css"), "utf8")
+    const from = css.indexOf("/* sequence states")
+    const to = css.indexOf("@media (prefers-reduced-motion: reduce)", from)
+    const block = css.slice(from, to)
+    const rules = [...block.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ sel: m[1].trim(), body: m[2] }))
+    const animated = rules.filter(
+      (r) => /animation(-delay)?\s*:/.test(r.body) && /html\[data-intro="(full|short)"\]/.test(r.sel),
+    )
+    expect(animated.length).toBeGreaterThan(8)
+    for (const r of animated) {
+      // the abort fade is the one animation without go: it runs when go never came
+      if (r.sel.includes('data-intro="abort"')) continue
+      expect(r.sel, r.sel).toContain("[data-intro-go]")
+    }
+    // the stop never flies (or shows) before IntroStage has measured where it lands
+    for (const r of rules.filter(
+      (r) => r.sel.includes(".intro-stop") && /animation\s*:|visibility\s*:\s*visible/.test(r.body),
+    ))
+      expect(r.sel, r.sel).toContain("[data-measured]")
+    // and the stop has no fallback position
+    expect(css).not.toMatch(/left:\s*var\(--i-stop-x,\s*50%\)/)
+    // nothing on the overlay shows before go
+    expect(block).toMatch(/\.intro-top,\s*\.intro-reel,\s*\.intro-stop\s*\{\s*visibility:\s*hidden/)
+  })
 })
